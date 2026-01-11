@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Müdürüm Cloud Pro - Yerel Sürüm</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #020617;
+            color: #cbd5e1;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        
+        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+
+        .pin-dot { transition: all 0.2s ease; }
+        .pin-dot.active { background-color: #3b82f6; transform: scale(1.2); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo, useRef } = React;
+
+        // --- UI Components ---
+        function NavItem({ active, onClick, iconName, label }) {
+            useEffect(() => { lucide.createIcons(); }, [active]);
+            return (
+                <button 
+                    onClick={onClick} 
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' : 'text-slate-400 hover:bg-slate-800'}`}
+                >
+                    <i data-lucide={iconName} className={`w-5 h-5 ${active ? 'text-white' : 'text-slate-500 group-hover:text-blue-400'}`}></i>
+                    <span className="font-semibold text-sm tracking-tight">{label}</span>
+                </button>
+            );
+        }
+
+        function StatRow({ label, count, color }) {
+            return (
+                <div className="flex items-center justify-between group">
+                    <div className="flex items-center gap-2">
+                        <div className={`w-1.5 h-1.5 rounded-full ${color}`} />
+                        <span className="text-[10px] text-slate-400 font-bold">{label}</span>
+                    </div>
+                    <span className="text-[10px] text-white font-black">{count}</span>
+                </div>
+            );
+        }
+
+        // --- Main App ---
+        function App() {
+            const [files, setFiles] = useState(() => {
+                const saved = localStorage.getItem('mudurum_files');
+                return saved ? JSON.parse(saved) : [];
+            });
+            const [searchQuery, setSearchQuery] = useState('');
+            const [activeTab, setActiveTab] = useState('all');
+            const [isLocked, setIsLocked] = useState(true);
+            const [pin, setPin] = useState('');
+            const [isSyncing, setIsSyncing] = useState(false);
+            const [isUploading, setIsUploading] = useState(false);
+            const [uploadProgress, setUploadProgress] = useState(0);
+            const [logs, setLogs] = useState([]);
+            
+            const fileInputRef = useRef(null);
+            const logEndRef = useRef(null);
+
+            // Ayarlar kodda kalsın dediniz Müdürüm
+            const tgConfig = { 
+                botToken: '8333780375:AAFFnpFiGKlhrbVbqHK1UNHocZfel--IAWY', 
+                chatId: '849396172' 
+            };
+
+            // LocalStorage Sync
+            useEffect(() => {
+                localStorage.setItem('mudurum_files', JSON.stringify(files));
+            }, [files]);
+
+            useEffect(() => {
+                lucide.createIcons();
+                logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [files, logs, isLocked]);
+
+            const addLog = (msg, type = 'info') => {
+                setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }]);
+            };
+
+            const handlePinSubmit = (val) => {
+                if (val === '1907') {
+                    setIsLocked(false);
+                    addLog("Giriş yapıldı Müdürüm.", "success");
+                } else if (val.length >= 4) {
+                    setPin('');
+                    addLog("Hatalı PIN denemesi!", "error");
+                }
+            };
+
+            const handleFileUpload = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                setIsUploading(true);
+                setUploadProgress(20);
+                addLog(`Yükleniyor: ${file.name}`);
+
+                try {
+                    const formData = new FormData();
+                    formData.append('chat_id', tgConfig.chatId);
+                    formData.append('document', file);
+                    
+                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendDocument`, { method: 'POST', body: formData });
+                    const result = await res.json();
+                    
+                    if (!result.ok) throw new Error(result.description);
+
+                    const newFile = {
+                        id: Date.now().toString(),
+                        name: file.name,
+                        size: file.size,
+                        type: file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : 'document',
+                        tgFileId: result.result.document.file_id,
+                        date: new Date().toLocaleDateString('tr-TR'),
+                        createdAt: Date.now(),
+                        isFavorite: false
+                    };
+
+                    setFiles(prev => [newFile, ...prev]);
+                    setUploadProgress(100);
+                    addLog("Telegram'a mühürlendi.", "success");
+                } catch (err) { 
+                    addLog("Telegram hatası: " + err.message, "error"); 
+                } finally { 
+                    setTimeout(() => setIsUploading(false), 800); 
+                    if (fileInputRef.current) fileInputRef.current.value = "";
+                }
+            };
+
+            const syncFromTelegram = async () => {
+                setIsSyncing(true);
+                addLog("Mobil cihaz taranıyor...");
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/getUpdates?offset=-10`);
+                    const data = await res.json();
+                    if (data.ok) {
+                        let count = 0;
+                        const newFiles = [];
+                        for (const up of data.result) {
+                            const msg = up.message;
+                            if (msg && String(msg.from.id) === tgConfig.chatId && (msg.document || msg.photo || msg.video)) {
+                                const fid = msg.document?.file_id || (msg.photo ? msg.photo[msg.photo.length-1].file_id : msg.video.file_id);
+                                if (!files.some(f => f.tgFileId === fid)) {
+                                    newFiles.push({
+                                        id: Date.now().toString() + count,
+                                        name: msg.document?.file_name || `Mobil_${msg.date}`,
+                                        size: msg.document?.file_size || 0,
+                                        type: msg.document ? 'document' : (msg.photo ? 'image' : 'video'),
+                                        tgFileId: fid,
+                                        date: new Date(msg.date * 1000).toLocaleDateString('tr-TR'),
+                                        createdAt: msg.date * 1000,
+                                        isFavorite: false
+                                    });
+                                    count++;
+                                }
+                            }
+                        }
+                        if(newFiles.length > 0) setFiles(prev => [...newFiles, ...prev]);
+                        addLog(count > 0 ? `${count} dosya içe aktarıldı.` : "Yeni dosya yok.");
+                    }
+                } catch (e) { addLog("Senkronizasyon başarısız.", "error"); }
+                setIsSyncing(false);
+            };
+
+            const formatSize = (b) => {
+                if (!b) return '0 B';
+                const i = Math.floor(Math.log(b) / Math.log(1024));
+                const sizes = ['B', 'KB', 'MB', 'GB'];
+                return (b / Math.pow(1024, i)).toFixed(1) + ' ' + sizes[i];
+            };
+
+            const filteredFiles = useMemo(() => {
+                return files.filter(f => {
+                    const matchSearch = f.name?.toLowerCase().includes(searchQuery.toLowerCase());
+                    const matchTab = activeTab === 'all' ? true : activeTab === 'starred' ? f.isFavorite : f.type === activeTab;
+                    return matchSearch && matchTab;
+                }).sort((a, b) => b.createdAt - a.createdAt);
+            }, [files, searchQuery, activeTab]);
+
+            const stats = useMemo(() => {
+                const s = { image: 0, video: 0, document: 0, total: 0 };
+                files.forEach(f => { if(s[f.type] !== undefined) s[f.type]++; s.total += (f.size || 0); });
+                return s;
+            }, [files]);
+
+            if (isLocked) {
+                return (
+                    <div className="h-screen flex items-center justify-center p-4 bg-[#020617]">
+                        <div className="bg-slate-900 border border-white/5 p-10 rounded-[2.5rem] shadow-2xl text-center max-w-sm w-full animate-fade-in">
+                            <div className="bg-blue-600/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                                <i data-lucide="lock" className="text-blue-500 w-8 h-8"></i>
+                            </div>
+                            <h2 className="text-xl font-black text-white uppercase italic mb-8 tracking-tighter">Müdürüm Cloud</h2>
+                            <div className="flex justify-center gap-3 mb-10">
+                                {[1,2,3,4].map(i => (
+                                    <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 border-blue-500/20 pin-dot ${pin.length >= i ? 'active' : ''}`} />
+                                ))}
+                            </div>
+                            <div className="grid grid-cols-3 gap-3">
+                                {[1,2,3,4,5,6,7,8,9, 'C', 0, 'OK'].map(n => (
+                                    <button key={n} onClick={() => {
+                                        if (n === 'C') setPin('');
+                                        else if (n === 'OK') handlePinSubmit(pin);
+                                        else if (pin.length < 4) {
+                                            const p = pin + n;
+                                            setPin(p);
+                                            if (p.length === 4) handlePinSubmit(p);
+                                        }
+                                    }} className="h-14 rounded-2xl bg-white/5 hover:bg-blue-600 text-white font-bold text-lg transition-all active:scale-90 border border-white/5">{n}</button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen flex flex-col md:flex-row overflow-hidden bg-[#020617]">
+                    {/* Sidebar */}
+                    <aside className="w-full md:w-72 bg-slate-900 border-r border-slate-800 p-6 flex flex-col shrink-0">
+                        <div className="flex items-center gap-3 mb-10">
+                            <div className="bg-blue-600 p-2 rounded-xl"><i data-lucide="cloud" className="text-white"></i></div>
+                            <h1 className="text-xl font-black text-white italic leading-none uppercase">Müdürüm</h1>
+                        </div>
+                        <nav className="space-y-1.5 flex-1">
+                            <NavItem active={activeTab === 'all'} onClick={() => setActiveTab('all')} iconName="layout-grid" label="Tüm Depo" />
+                            <NavItem active={activeTab === 'starred'} onClick={() => setActiveTab('starred')} iconName="star" label="Yıldızlılar" />
+                            <NavItem active={activeTab === 'image'} onClick={() => setActiveTab('image')} iconName="image" label="Görseller" />
+                            <NavItem active={activeTab === 'video'} onClick={() => setActiveTab('video')} iconName="film" label="Videolar" />
+                        </nav>
+                        <div className="mt-4 p-4 bg-blue-600/5 border border-blue-500/10 rounded-2xl space-y-4">
+                            <button onClick={syncFromTelegram} disabled={isSyncing} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg active:scale-95 transition-all">
+                                <i data-lucide="smartphone" className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`}></i> {isSyncing ? 'Taranıyor...' : 'Mobilden Çek'}
+                            </button>
+                            <div className="space-y-2 pt-2 border-t border-white/5">
+                                <StatRow label="Depo" count={formatSize(stats.total)} color="bg-blue-500" />
+                            </div>
+                        </div>
+                        <div className="mt-4 p-3 bg-black/40 rounded-xl h-24 overflow-y-auto text-[9px] font-mono custom-scrollbar text-slate-500">
+                            {logs.map((l, i) => <div key={i} className="mb-1 leading-tight"><span className="opacity-40">[{l.time}]</span> <span className={l.type === 'success' ? 'text-blue-400' : l.type === 'error' ? 'text-rose-500' : ''}>{l.msg}</span></div>)}
+                            <div ref={logEndRef} />
+                        </div>
+                    </aside>
+
+                    {/* Main Content */}
+                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
+                        <header className="h-20 flex items-center justify-between px-6 border-b border-slate-800/50 backdrop-blur-md z-10 shrink-0">
+                            <div className="flex-1 max-w-md relative group">
+                                <i data-lucide="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 w-4 h-4 group-focus-within:text-blue-400 transition-colors"></i>
+                                <input type="text" placeholder="Dosya ara Müdürüm..." className="w-full bg-slate-900 border border-slate-800 rounded-2xl py-2.5 pl-12 pr-4 outline-none text-sm focus:border-blue-500/50 transition-all shadow-inner" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+                                <button onClick={() => fileInputRef.current.click()} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 shadow-lg active:scale-95 transition-all"><i data-lucide="upload" className="w-4 h-4"></i> YÜKLE</button>
+                                <button onClick={() => setIsLocked(true)} className="p-2.5 bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-white/5 transition-all"><i data-lucide="log-out" className="w-4 h-4"></i></button>
+                            </div>
+                        </header>
+
+                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+                            {isUploading && (
+                                <div className="mb-8 p-5 bg-blue-600/10 border border-blue-500/20 rounded-[2rem] animate-pulse">
+                                    <div className="flex justify-between text-[10px] font-black text-blue-400 mb-2 uppercase tracking-widest"><span>BOT SUNUCUSUNA YAZILIYOR</span><span>%{uploadProgress}</span></div>
+                                    <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden"><div className="bg-blue-500 h-full transition-all duration-500 shadow-[0_0_10px_rgba(59,130,246,0.5)]" style={{width: `${uploadProgress}%`}}></div></div>
+                                </div>
+                            )}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
+                                {filteredFiles.map(f => (
+                                    <div key={f.id} className="group bg-slate-900/40 border border-slate-800/50 p-6 rounded-[2.5rem] hover:bg-slate-800/60 hover:border-blue-500/30 transition-all relative shadow-xl">
+                                        <button onClick={() => {
+                                            setFiles(prev => prev.map(file => file.id === f.id ? {...file, isFavorite: !file.isFavorite} : file));
+                                        }} className={`absolute top-5 left-5 p-2 rounded-xl z-10 transition-all ${f.isFavorite ? 'bg-amber-500/20 text-amber-500' : 'bg-black/20 text-slate-600 opacity-0 group-hover:opacity-100 hover:text-amber-500'}`}><i data-lucide="star" className="w-4 h-4" fill={f.isFavorite ? 'currentColor' : 'none'}></i></button>
+                                        
+                                        <div className="flex justify-center mb-6">
+                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${f.type==='image'?'bg-emerald-500/10 text-emerald-500':f.type==='video'?'bg-rose-500/10 text-rose-500':'bg-blue-500/10 text-blue-500'} group-hover:scale-110 duration-300 shadow-inner`}><i data-lucide={f.type==='image'?'image':f.type==='video'?'film':'file-text'} className="w-7 h-7"></i></div>
+                                        </div>
+                                        
+                                        <h3 className="text-white text-sm font-bold truncate text-center mb-1 tracking-tight leading-none uppercase">{f.name}</h3>
+                                        <p className="text-[10px] text-slate-500 font-bold text-center mb-4 opacity-60">{formatSize(f.size)} • {f.date}</p>
+                                        
+                                        <div className="mt-4 flex gap-2 pt-4 border-t border-white/5 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
+                                            <button onClick={async () => {
+                                                const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/getFile?file_id=${f.tgFileId}`);
+                                                const data = await res.json();
+                                                if(data.ok) window.open(`https://api.telegram.org/file/bot${tgConfig.botToken}/${data.result.file_path}`, '_blank');
+                                            }} className="flex-1 p-2.5 bg-slate-800 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-lg active:scale-90"><i data-lucide="download" className="w-4 h-4 mx-auto"></i></button>
+                                            
+                                            <button onClick={() => {
+                                                if(confirm('Dosyayı listeden sileyim mi Müdürüm?')) {
+                                                    setFiles(prev => prev.filter(file => file.id !== f.id));
+                                                    addLog("Dosya yerel bellekten silindi.");
+                                                }
+                                            }} className="flex-1 p-2.5 bg-slate-800 hover:bg-rose-600 text-white rounded-xl transition-all shadow-lg active:scale-90"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            {filteredFiles.length === 0 && !isUploading && (
+                               <div className="col-span-full py-40 flex flex-col items-center justify-center text-slate-700 opacity-30">
+                                  <i data-lucide="folder-open" className="w-16 h-16 mb-4"></i>
+                                  <p className="text-2xl font-black italic tracking-tighter uppercase">Dosya Yok Müdürüm</p>
+                               </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
