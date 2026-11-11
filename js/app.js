@@ -16,7 +16,7 @@ const DISP = 1400;             // önizleme uzun kenarı
 const S = Object.assign({
   enhSize: 'same', enhFace: true, enhAmt: 70, model: 'fast', scale: '2', faceOn: false, faceModel: 'gpen',
   bMode: 'enhance', bScale: '2', theme: 'koyu', cpuBudget: '0.6', pfShape: 'circle', rzFit: 'fit', rzBg: 'blur',
-  rzSize: 'igpost', recent: [], aiQual: '1K', aiRatio: 'orig', v: 3,
+  rzSize: 'igpost', recent: [], aiQual: '1K', aiRatio: 'orig', v: 3, colT: 'grid', colBg: '#f3efe7',
 }, JSON.parse(localStorage.getItem('netlik-ayar') || '{}'));
 const saveS = () => localStorage.setItem('netlik-ayar', JSON.stringify(S));
 const rates = JSON.parse(localStorage.getItem('netlik-hiz') || '{}'); // piksel/sn (SR)
@@ -266,10 +266,12 @@ const TOOLS = {
   resize: { t: 'Tekrar boyutlandır', run: 'Kaydet', p: 'resize', comp: true },
   effects: { t: 'Klasik efektler', run: 'Kaydet', p: 'effects' },
   color: { t: 'Renk', run: 'Uygula', p: 'color' },
+  collage: { t: 'Kolaj', run: 'Kaydet', p: 'collage' },
 };
 function startTool(tool, opt = {}) {
   haptic();
   if (tool === 'ai') return openAI();
+  if (tool === 'collage') return pickCollage();
   openPicker((img, note, same) => { if (!same) setBase(img); if (note) toast(note, 4000); openTool(tool, opt); });
 }
 $$('[data-tool]').forEach(b => b.addEventListener('click', () => startTool(b.dataset.tool)));
@@ -449,6 +451,7 @@ $('#runBtn').addEventListener('click', async () => {
   haptic();
   const tool = st.tool, T = TOOLS[tool];
   if (T.comp) return exportComp();
+  if (tool === 'collage') return exportCollage();
   if (tool === 'effects') return saveCurrent(st.result || st.base, 'efekt');
   const base = st.base;
   try {
@@ -525,6 +528,7 @@ $$('[data-opt]').forEach(seg => {
     if (k === 'pfShape') $('#cwrap').classList.toggle('circle', v === 'circle');
     if (k === 'rzFit' || k === 'rzBg') applyResizeOpts();
     if (k === 'faceModel') { st.faceRaw = null; }
+    if (k === 'colT') renderCollage();
     optionChanged();
   });
 });
@@ -1082,6 +1086,90 @@ $('#hClear').addEventListener('click', async () => { if (confirm('Tüm içerik s
   sh.addEventListener('touchmove', e => { if (y0 == null) return; const dy = e.touches[0].clientY - y0; if (dy > 0) { sh.style.transition = 'none'; sh.style.transform = `translateY(${dy}px)`; } }, { passive: true });
   sh.addEventListener('touchend', e => { const dy = e.changedTouches[0].clientY - y0; sh.style.transition = ''; sh.style.transform = ''; y0 = null; if (dy > 90) closeHV(); });
 })();
+
+// ---------------- kolaj ----------------
+const col = { items: [] };
+function pickCollage() { $('#colIn').click(); }
+$('#colIn').addEventListener('change', async e => {
+  const files = [...e.target.files].slice(0, 6); e.target.value = ''; if (!files.length) return;
+  const items = [];
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const { img } = await decodeFile(files[i]);
+      const sm = smallImg(img, 1600);
+      const cut = await withProc('Kolaj hazırlanıyor (' + (i + 1) + '/' + files.length + ')', sm, () => runJob('segment', { img: pack(sm) }));
+      const b = lastInfo.box || { x: 0, y: 0, w: sm.w, h: sm.h };
+      const c = imgCanvas(cut), cc = document.createElement('canvas'); cc.width = b.w; cc.height = b.h;
+      cc.getContext('2d').drawImage(c, b.x, b.y, b.w, b.h, 0, 0, b.w, b.h); items.push(cc);
+      if (!i) setBase(sm);
+    }
+  } catch (err) { toast(err.cancelled ? 'Durduruldu' : 'Hata: ' + err.message, 5000); if (!items.length) return; }
+  col.items = items;
+  if (st.tool !== 'collage') {
+    st.tool = 'collage'; st.mode = 'collage';
+    $('#toolTitle').textContent = 'Kolaj'; $('#runTxt').textContent = 'Kaydet';
+    $$('.panel').forEach(p => p.classList.toggle('on', p.dataset.p === 'collage'));
+    $('#resultBar').hidden = true; $('#runBtn').hidden = false; $('#undoBtn').hidden = true; $('#cwrap').classList.remove('circle');
+    openScreen('toolScreen'); await raf();
+    $$('#toolPanel .seg').forEach(s => s._ctl && s._ctl.set(S[s.dataset.opt], false));
+  }
+  renderCollage();
+});
+$('#colAdd').addEventListener('click', () => { haptic(); pickCollage(); });
+$('#colTitle').addEventListener('input', () => renderCollage());
+buildColorSw($('#colColors'), c => { S.colBg = c; saveS(); renderCollage(); });
+function fitIn(ctx, c, x, y, w, h, pad = 0.08, rot = 0) {
+  const k = Math.min(w * (1 - pad * 2) / c.width, h * (1 - pad * 2) / c.height), dw = c.width * k, dh = c.height * k;
+  ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.rotate(rot); ctx.drawImage(c, -dw / 2, -dh / 2, dw, dh); ctx.restore();
+}
+function rrect(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawCollage(cv) {
+  const W = 1080, H = 1350; cv.width = W; cv.height = H;
+  const ctx = cv.getContext('2d'), it = col.items, bg = S.colBg || '#f3efe7';
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const [r, g, b] = F.hexRgb(bg), dark = (r * 0.299 + g * 0.587 + b * 0.114) < 120;
+  const ink = dark ? '#ffffff' : '#141414', title = $('#colTitle').value || '';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const font = (sz, w = 850) => `${w} ${sz}px -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif`;
+  if (S.colT === 'sticker') {
+    ctx.font = font(96, 900); ctx.fillStyle = ink; ctx.save(); ctx.translate(W / 2, 130); ctx.rotate(-0.03); ctx.fillText(title, 0, 0); ctx.restore();
+    const slots = [[60, 230, 520, 520, -0.08], [520, 260, 500, 500, 0.07], [80, 720, 480, 520, 0.05], [540, 760, 480, 480, -0.06], [300, 500, 480, 480, 0.02], [320, 980, 440, 340, -0.04]];
+    it.forEach((c, i) => {
+      const s = slots[i % slots.length];
+      // beyaz kenarlı etiket: gölgeyle kontur taklidi
+      ctx.save(); ctx.shadowColor = '#fff'; ctx.shadowBlur = 0;
+      for (const [dx, dy] of [[-7, 0], [7, 0], [0, -7], [0, 7], [-5, -5], [5, 5], [-5, 5], [5, -5]]) { ctx.shadowOffsetX = dx; ctx.shadowOffsetY = dy; fitIn(ctx, c, s[0], s[1], s[2], s[3], 0.06, s[4]); }
+      ctx.restore();
+      ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10; fitIn(ctx, c, s[0], s[1], s[2], s[3], 0.06, s[4]); ctx.restore();
+    });
+    return cv;
+  }
+  ctx.font = font(78); ctx.fillStyle = ink; ctx.fillText(title, W / 2, 105);
+  ctx.fillStyle = ink; ctx.globalAlpha = 0.25; ctx.fillRect(W / 2 - 60, 160, 120, 4); ctx.globalAlpha = 1;
+  const cells = S.colT === 'hero'
+    ? [[60, 210, 960, 640], [60, 880, 465, 420], [555, 880, 465, 420]]
+    : [[60, 210, 465, 525], [555, 210, 465, 525], [60, 765, 465, 525], [555, 765, 465, 525]];
+  cells.forEach((cl, i) => {
+    const c = it[i % it.length]; if (!c) return;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.12)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 10;
+    rrect(ctx, cl[0], cl[1], cl[2], cl[3], 28); ctx.fillStyle = dark ? 'rgba(255,255,255,.08)' : '#ffffff'; ctx.fill(); ctx.restore();
+    ctx.save(); rrect(ctx, cl[0], cl[1], cl[2], cl[3], 28); ctx.clip(); fitIn(ctx, c, cl[0], cl[1], cl[2], cl[3], 0.07); ctx.restore();
+  });
+  return cv;
+}
+function renderCollage() {
+  if (st.tool !== 'collage' || !col.items.length) return;
+  drawCollage($('#cAfter')); $('#cBefore').width = 1; $('#cwrap').classList.add('single'); $('#cwrap').classList.remove('checker');
+  layoutStage(); setDims('1080×1350');
+}
+async function exportCollage() {
+  if (!col.items.length) return pickCollage();
+  const c = drawCollage(document.createElement('canvas'));
+  const blob = await canvasBlob(c, false, 0.94), thumb = await thumbOf(c, false);
+  DB.addItem({ blob, thumb, w: c.width, h: c.height, label: 'kolaj' }).catch(() => {});
+  const ok = await shareBlobs([{ blob, name: fname(blob, 'kolaj') }]);
+  toast(ok ? 'Kaydedildi' : 'İçerik\'e kaydedildi');
+}
 
 // ---------------- yarım kalan işler ----------------
 let resumeJob = null;

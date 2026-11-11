@@ -63,6 +63,7 @@
       <button class="tcard press" data-tool="profile" data-cat="portrait social" data-k="profil resmi linkedin whatsapp vesikalık avatar"><div class="tc-img" style="background-image:url(img/t_profile.jpg)"></div><b>Profil resmi</b></button>
       <button class="tcard press" data-tool="bgscene" data-cat="portrait edit" data-k="arka plan değiştir manzara stüdyo bulanık"><div class="tc-img" style="background-image:url(img/t_scene.jpg)"></div><b>Arka plan değiştir</b></button>
       <button class="tcard press ai" data-tool="ai" data-cat="ai portrait social" data-k="ai stüdyo gemini kıyafet takım elbise sahne ürün"><div class="tc-img" style="background-image:url(img/t_ai.jpg)"></div><b>AI Stüdyo</b></button>
+      <button class="tcard press" data-tool="collage" data-cat="social edit" data-k="kolaj katalog şablon sticker çoklu"><div class="tc-img" style="background-image:url(img/t_collage.jpg)"></div><b>Kolaj</b></button>
       <button class="tcard press" data-tool="color" data-cat="edit" data-k="renk parlaklık kontrast sıcaklık"><div class="tc-img" style="background-image:url(img/t_color.jpg)"></div><b>Renk</b></button>
     </div>
 
@@ -215,6 +216,13 @@
     <div class="panel" data-p="effects">
       <div class="fx-row" id="fxRow"></div>
       <div class="slider-row" id="fxAmtRow"><div class="slider-labels"><span>Yoğunluk</span></div><input type="range" min="10" max="100" value="60" id="fxAmt"></div>
+    </div>
+    <!-- kolaj -->
+    <div class="panel" data-p="collage">
+      <div class="row"><label>Şablon</label><div class="seg small" data-opt="colT"><button data-v="grid">2×2 katalog</button><button data-v="hero">1+2</button><button data-v="sticker">Etiket</button><i class="seg-pill"></i></div></div>
+      <div class="text-row"><input id="colTitle" placeholder="Başlık" maxlength="40" value="Koleksiyon"></div>
+      <div class="swatches small" id="colColors"></div>
+      <button class="link-btn" id="colAdd">Fotoğrafları değiştir</button>
     </div>
     <!-- renk -->
     <div class="panel" data-p="color">
@@ -371,6 +379,7 @@
 <input type="file" id="docIn" accept="image/*,.heic,.png,.jpg,.jpeg,.webp" hidden>
 <input type="file" id="bgFileIn" accept="image/*" hidden>
 <input type="file" id="bFileIn" accept="image/*" multiple hidden>
+<input type="file" id="colIn" accept="image/*" multiple hidden>
 <label id="hapticLbl" aria-hidden="true" style="position:fixed;left:-99px;top:-99px;opacity:0"><input type="checkbox" switch id="hapticSw"></label>
 
 <script type="module" src="js/app.js?v=3"></script>
