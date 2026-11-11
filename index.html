@@ -1,519 +1,223 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="tr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arşiv Hub - Müdürüm Özel</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            transition: background-color 0.3s ease, color 0.3s ease;
-        }
-        /* Dark Theme Styles */
-        body.dark { background-color: #020617; color: #cbd5e1; }
-        body.dark .bg-sidebar { background-color: #0f172a; border-color: #1e293b; }
-        body.dark .bg-card { background-color: rgba(15, 23, 42, 0.4); border-color: rgba(30, 41, 59, 0.5); }
-        body.dark .text-main { color: #f8fafc; }
-        
-        /* Light Theme Styles */
-        body.light { background-color: #f8fafc; color: #334155; }
-        body.light .bg-sidebar { background-color: #ffffff; border-color: #e2e8f0; }
-        body.light .bg-card { background-color: #ffffff; border-color: #e2e8f0; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        body.light .text-main { color: #0f172a; }
-
-        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 10px; }
-        
-        @keyframes fade-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
-
-        .pin-dot { transition: all 0.2s ease; }
-        .pin-dot.active { background-color: #3b82f6; transform: scale(1.2); box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
-    </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Netlik – Yapay Zekâ Foto</title>
+<meta name="description" content="Fotoğrafları telefonda yapay zekâ ile büyüt, yüzleri iyileştir, arka planı düzenle. Fotoğraf cihazdan çıkmaz.">
+<meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f3f4fa" media="(prefers-color-scheme: light)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Netlik">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="css/app.css">
+<script>
+  (function(){var t=localStorage.getItem('netlik-tema')||'sistem';var d=t==='koyu'||(t==='sistem'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';})();
+</script>
 </head>
-<body class="dark">
-    <div id="root"></div>
+<body>
 
-    <script type="text/babel">
-        const { useState, useEffect, useMemo, useRef } = React;
+<div id="splash">
+  <div class="splash-logo"><img src="icons/icon-192.png" alt=""><div class="splash-ring"></div></div>
+  <div class="splash-name">Netlik</div>
+  <div class="splash-sub">Yapay zekâ ile netleştir</div>
+</div>
 
-        // --- UI Components ---
-        function NavItem({ active, onClick, iconName, label, badge, colorClass }) {
-            useEffect(() => { lucide.createIcons(); }, [active]);
-            return (
-                <button 
-                    onClick={onClick} 
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 group ${active ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:bg-blue-500/10'}`}
-                >
-                    <i data-lucide={iconName} className={`w-5 h-5 ${active ? 'text-white' : colorClass || 'group-hover:text-blue-500'}`}></i>
-                    <span className="font-semibold text-sm tracking-tight">{label}</span>
-                    {badge > 0 && <span className="ml-auto text-[10px] bg-blue-500/20 text-blue-500 px-2 py-0.5 rounded-full font-bold">{badge}</span>}
-                </button>
-            );
-        }
+<header class="topbar">
+  <h1 id="title">Stüdyo</h1>
+  <button class="chip" id="engineChip" title="Hızlandırma"><span class="dot"></span><span id="engineTxt">Hazırlanıyor</span></button>
+</header>
 
-        // --- Main App ---
-        function App() {
-            const [files, setFiles] = useState(() => {
-                const saved = localStorage.getItem('mudurum_files_v3');
-                return saved ? JSON.parse(saved) : [];
-            });
-            const [theme, setTheme] = useState(() => localStorage.getItem('mudurum_theme') || 'dark');
-            const [searchQuery, setSearchQuery] = useState('');
-            const [activeTab, setActiveTab] = useState('all');
-            const [isLocked, setIsLocked] = useState(true);
-            const [pin, setPin] = useState('');
-            const [isSyncing, setIsSyncing] = useState(false);
-            const [isUploading, setIsUploading] = useState(false);
-            const [uploadProgress, setUploadProgress] = useState(0);
-            const [logs, setLogs] = useState([]);
-            const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-            const [newNote, setNewNote] = useState('');
-            
-            const fileInputRef = useRef(null);
-            const logEndRef = useRef(null);
+<main id="views">
+  <!-- STÜDYO -->
+  <section class="view active" id="v-studio">
+    <div id="empty" class="hero">
+      <div class="orb o1"></div><div class="orb o2"></div>
+      <h2>Fotoğrafını<br><span class="grad">netleştir</span></h2>
+      <p>Yapay zekâ ile 2×/4× büyüt, yüzleri doğal şekilde iyileştir, arka planı düzenle.</p>
+      <div class="hero-btns">
+        <button class="btn primary big press" id="pickBtn">
+          <svg viewBox="0 0 24 24"><path d="M4 5h3l2-2h6l2 2h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+          Fotoğraf seç</button>
+      </div>
+      <div class="privacy"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Fotoğrafın telefonundan hiç çıkmaz</div>
+      <div class="features">
+        <div class="feat"><svg viewBox="0 0 24 24"><path d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>4× Büyütme</span></div>
+        <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 14.5c1 1.3 2.2 2 3.5 2s2.5-.7 3.5-2M9 10h.01M15 10h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Yüz iyileştirme</span></div>
+        <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2.5" y="2.5" width="19" height="19" rx="4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 3"/></svg><span>Arka plan</span></div>
+        <div class="feat"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.3-1-2.5 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.1-4-7.5-9-7.5Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7.5" cy="11" r="1.3" fill="currentColor"/><circle cx="10" cy="7" r="1.3" fill="currentColor"/><circle cx="15" cy="7.5" r="1.3" fill="currentColor"/></svg><span>Renk</span></div>
+      </div>
+    </div>
 
-            const tgConfig = { 
-                botToken: '8333780375:AAFFnpFiGKlhrbVbqHK1UNHocZfel--IAWY', 
-                chatId: '849396172' 
-            };
+    <div id="work" hidden>
+      <div class="stage" id="stage">
+        <div class="cwrap" id="cwrap">
+          <div class="zoomer" id="zoomer">
+            <canvas id="cBefore"></canvas>
+            <canvas id="cAfter"></canvas>
+          </div>
+          <div class="divider" id="divider"><div class="knob"><svg viewBox="0 0 24 24"><path d="m9 6-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+          <span class="tag l" id="tagL">Önce</span><span class="tag r" id="tagR">Sonra</span>
+        </div>
+      </div>
+      <div class="stage-bar">
+        <button class="icon-btn press" id="newBtn" title="Yeni fotoğraf"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+        <div class="dims" id="dims">–</div>
+        <button class="icon-btn press" id="zoomBtn" title="Yakınlaştır"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5M11 8v6M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      </div>
 
-            useEffect(() => {
-                document.body.className = theme;
-                localStorage.setItem('mudurum_theme', theme);
-            }, [theme]);
+      <div id="resultBar" class="result-bar" hidden>
+        <button class="btn primary press" id="shareBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Kaydet / Paylaş</button>
+        <button class="btn soft press" id="continueBtn">Sonuçla devam et</button>
+      </div>
 
-            useEffect(() => {
-                localStorage.setItem('mudurum_files_v3', JSON.stringify(files));
-            }, [files]);
+      <div class="seg tools" id="toolSeg">
+        <button data-v="up" class="on">Büyüt</button>
+        <button data-v="bg">Arka plan</button>
+        <button data-v="color">Renk</button>
+        <i class="seg-pill"></i>
+      </div>
 
-            useEffect(() => {
-                lucide.createIcons();
-                logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, [files, logs, isLocked, theme, activeTab, isNoteModalOpen]);
+      <div class="panels">
+        <div class="panel on" data-tool="up">
+          <div class="row"><label>Kalite</label>
+            <div class="seg small" data-opt="model"><button data-v="fast">Hızlı</button><button data-v="best">En iyi</button><i class="seg-pill"></i></div></div>
+          <div class="row"><label>Ölçek</label>
+            <div class="seg small" data-opt="scale"><button data-v="2">2×</button><button data-v="4">4×</button><i class="seg-pill"></i></div></div>
+          <div class="row"><label>Yüz iyileştirme</label><label class="switch"><input type="checkbox" id="faceOn"><span></span></label></div>
+          <div id="faceOpts" class="sub-opts">
+            <div class="row"><label>Model</label>
+              <div class="seg small" data-opt="faceModel"><button data-v="gpen">Doğal</button><button data-v="codeformer">Güçlü</button><i class="seg-pill"></i></div></div>
+            <div class="slider-row"><div class="slider-labels"><span>Doğal</span><span>Pürüzsüz</span></div>
+              <input type="range" min="0" max="100" value="40" id="faceS"></div>
+          </div>
+          <div class="hint" id="upHint"></div>
+        </div>
 
-            const addLog = (msg, type = 'info') => {
-                setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), msg, type }]);
-            };
+        <div class="panel" data-tool="bg">
+          <div class="row"><label>Mod</label>
+            <div class="seg small" data-opt="bgMode"><button data-v="blur">Bulanık</button><button data-v="remove">Sil</button><i class="seg-pill"></i></div></div>
+          <div class="slider-row" id="bgAmountRow"><div class="slider-labels"><span>Hafif</span><span>Güçlü bulanıklık</span></div>
+            <input type="range" min="10" max="100" value="60" id="bgAmount"></div>
+          <div class="hint">Portre (insan) fotoğrafları için en iyisi. Model: 13 MB, bir kez indirilir. "Sil" şeffaf PNG verir.</div>
+        </div>
 
-            const handlePinSubmit = (val) => {
-                if (val === '1907') {
-                    setIsLocked(false);
-                    addLog("Hub erişimi sağlandı.", "success");
-                } else if (val.length >= 4) {
-                    setPin('');
-                    addLog("Hatalı PIN denemesi!", "error");
-                }
-            };
+        <div class="panel" data-tool="color">
+          <div class="row"><label>Otomatik düzelt</label><label class="switch"><input type="checkbox" id="cAuto" checked><span></span></label></div>
+          <div class="slider-row"><div class="slider-labels"><span>Parlaklık</span><output id="o_brightness">0</output></div><input type="range" min="-100" max="100" value="0" data-c="brightness"></div>
+          <div class="slider-row"><div class="slider-labels"><span>Kontrast</span><output id="o_contrast">0</output></div><input type="range" min="-100" max="100" value="0" data-c="contrast"></div>
+          <div class="slider-row"><div class="slider-labels"><span>Doygunluk</span><output id="o_saturation">0</output></div><input type="range" min="-100" max="100" value="0" data-c="saturation"></div>
+          <div class="slider-row"><div class="slider-labels"><span>Sıcaklık</span><output id="o_warmth">0</output></div><input type="range" min="-100" max="100" value="0" data-c="warmth"></div>
+          <div class="slider-row"><div class="slider-labels"><span>Netlik</span><output id="o_sharpen">30</output></div><input type="range" min="0" max="100" value="30" data-c="sharpen"></div>
+          <button class="link-btn" id="colorReset">Sıfırla</button>
+        </div>
+      </div>
 
-            const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+      <button class="btn primary big press run" id="runBtn"><span class="shine"></span><span id="runTxt">Büyüt</span></button>
+    </div>
+  </section>
 
-            const handleFileUpload = async (e) => {
-                const file = e.target.files[0];
-                if (!file) return;
-                setIsUploading(true);
-                setUploadProgress(20);
-                addLog(`Aktarılıyor: ${file.name}`);
+  <!-- TOPLU -->
+  <section class="view" id="v-batch">
+    <div class="card">
+      <div class="card-title">Toplu büyütme</div>
+      <div class="row"><label>Kalite</label>
+        <div class="seg small" data-opt="bModel"><button data-v="fast">Hızlı</button><button data-v="best">En iyi</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Ölçek</label>
+        <div class="seg small" data-opt="bScale"><button data-v="2">2×</button><button data-v="4">4×</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Yüz iyileştirme</label><label class="switch"><input type="checkbox" id="bFace"><span></span></label></div>
+      <div class="row"><label>Otomatik renk</label><label class="switch"><input type="checkbox" id="bColor"><span></span></label></div>
+      <div class="hint">Yüz modeli ve ayarı Stüdyo'daki seçimi kullanır. İşlem sırasında uygulamayı açık tutun.</div>
+    </div>
+    <div class="batch-actions">
+      <button class="btn soft press" id="bPick">Fotoğrafları seç</button>
+      <button class="btn primary press" id="bStart" disabled>Başlat</button>
+    </div>
+    <ul class="queue" id="queue"></ul>
+    <button class="btn primary press wide" id="bShare" hidden>Tümünü kaydet / paylaş</button>
+    <div class="empty-note" id="bEmpty">Birden çok fotoğraf seçin; hepsi sırayla işlenir ve Geçmiş'e kaydedilir.</div>
+  </section>
 
-                try {
-                    const formData = new FormData();
-                    formData.append('chat_id', tgConfig.chatId);
-                    formData.append('document', file);
-                    
-                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendDocument`, { method: 'POST', body: formData });
-                    const result = await res.json();
-                    
-                    if (!result.ok) throw new Error(result.description);
+  <!-- GEÇMİŞ -->
+  <section class="view" id="v-history">
+    <div class="grid" id="hGrid"></div>
+    <div class="empty-note" id="hEmpty">Henüz sonuç yok. İşlediğin fotoğraflar burada (yalnızca bu cihazda) saklanır.</div>
+    <button class="link-btn danger" id="hClear" hidden>Geçmişi temizle</button>
+  </section>
 
-                    const newFile = {
-                        id: Date.now().toString(),
-                        name: file.name,
-                        size: file.size,
-                        type: file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : 'document',
-                        tgFileId: result.result.document.file_id,
-                        messageId: result.result.message_id,
-                        date: new Date().toLocaleDateString('tr-TR'),
-                        createdAt: Date.now(),
-                        isFavorite: false,
-                        isArchived: false,
-                        isDeleted: false
-                    };
+  <!-- AYARLAR -->
+  <section class="view" id="v-settings">
+    <div class="card">
+      <div class="card-title">Görünüm</div>
+      <div class="row"><label>Tema</label>
+        <div class="seg small" data-opt="theme"><button data-v="sistem">Sistem</button><button data-v="koyu">Koyu</button><button data-v="acik">Açık</button><i class="seg-pill"></i></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Hızlandırma</div>
+      <div class="kv"><span>Motor</span><b id="sEngine">–</b></div>
+      <div class="hint" id="sEngineHint"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Yapay zekâ modelleri</div>
+      <div class="hint">Modeller ilk kullanımda bir kez indirilir ve cihazda saklanır. Wi‑Fi'deyken önceden indirebilirsin.</div>
+      <ul class="models" id="mList"></ul>
+      <button class="link-btn danger" id="mClear">Model önbelleğini temizle</button>
+    </div>
+    <div class="card about">
+      <div class="card-title">Hakkında</div>
+      <p>Netlik tamamen tarayıcında çalışır; fotoğraflar hiçbir sunucuya gönderilmez. Modeller Hugging Face'ten indirilir.</p>
+      <p class="small">Real-ESRGAN (BSD-3), SCRFD/InsightFace, GPEN, CodeFormer (S-Lab lisansı – yalnızca ticari olmayan/kişisel kullanım), MODNet (Apache-2.0), ONNX Runtime Web (MIT).</p>
+    </div>
+  </section>
+</main>
 
-                    setFiles(prev => [newFile, ...prev]);
-                    setUploadProgress(100);
-                    addLog("Hub Arşivine mühürlendi.", "success");
-                } catch (err) { addLog("Hata: " + err.message, "error"); }
-                finally { 
-                    setTimeout(() => setIsUploading(false), 800); 
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                }
-            };
+<nav class="tabbar" id="tabbar">
+  <i class="tab-pill" id="tabPill"></i>
+  <button data-tab="studio" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.1L19 9l-3.8 3.4L16.3 18 12 15.2 7.7 18l1.1-5.6L5 9l4.8-.9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Stüdyo</span></button>
+  <button data-tab="batch"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4h11a2 2 0 0 1 2 2v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Toplu</span></button>
+  <button data-tab="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Geçmiş</span></button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Ayarlar</span></button>
+</nav>
 
-            const handleSendText = async () => {
-                if (!newNote.trim()) return;
-                setIsUploading(true);
-                addLog("Metin Hub'a gönderiliyor...");
+<!-- İlerleme -->
+<div class="scrim" id="progScrim"></div>
+<div class="sheet" id="progSheet">
+  <div class="grabber"></div>
+  <div class="ring-wrap">
+    <svg class="ring" viewBox="0 0 120 120">
+      <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+      <circle cx="60" cy="60" r="52" class="ring-bg"/>
+      <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/>
+    </svg>
+    <div class="ring-txt" id="ringTxt">0%</div>
+  </div>
+  <div class="prog-stage" id="progStage">Hazırlanıyor…</div>
+  <div class="prog-sub" id="progSub">&nbsp;</div>
+  <button class="btn soft press" id="cancelBtn">İptal</button>
+</div>
 
-                try {
-                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/sendMessage`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: tgConfig.chatId,
-                            text: `📝 HUB NOTU:\n\n${newNote}`
-                        })
-                    });
-                    const result = await res.json();
-                    if (!result.ok) throw new Error(result.description);
+<!-- Geçmiş görüntüleyici -->
+<div class="scrim" id="hvScrim"></div>
+<div class="sheet tall" id="hvSheet">
+  <div class="grabber"></div>
+  <img id="hvImg" alt="">
+  <div class="hv-meta" id="hvMeta"></div>
+  <div class="hv-actions">
+    <button class="btn primary press" id="hvShare">Kaydet / Paylaş</button>
+    <button class="btn soft press" id="hvEdit">Stüdyoda aç</button>
+    <button class="btn soft danger press" id="hvDel">Sil</button>
+  </div>
+</div>
 
-                    const newEntry = {
-                        id: Date.now().toString(),
-                        name: "Metin Notu",
-                        content: newNote,
-                        messageId: result.result.message_id,
-                        type: 'text',
-                        date: new Date().toLocaleDateString('tr-TR'),
-                        createdAt: Date.now(),
-                        isFavorite: false,
-                        isArchived: false,
-                        isDeleted: false
-                    };
+<div id="toast"></div>
+<input type="file" id="fileIn" accept="image/*" hidden>
+<input type="file" id="bFileIn" accept="image/*" multiple hidden>
+<label id="hapticLbl" aria-hidden="true" style="position:fixed;left:-99px;top:-99px;opacity:0"><input type="checkbox" switch id="hapticSw"></label>
 
-                    setFiles(prev => [newEntry, ...prev]);
-                    setNewNote('');
-                    setIsNoteModalOpen(false);
-                    addLog("Metin notu kaydedildi.", "success");
-                } catch (err) { addLog("Hata: " + err.message, "error"); }
-                finally { setIsUploading(false); }
-            };
-
-            const syncFromTelegram = async () => {
-                setIsSyncing(true);
-                addLog("Mobil senkronizasyon...");
-                try {
-                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/getUpdates?offset=-10`);
-                    const data = await res.json();
-                    if (data.ok) {
-                        let count = 0;
-                        const newFiles = [];
-                        for (const up of data.result) {
-                            const msg = up.message;
-                            if (msg && String(msg.from.id) === tgConfig.chatId) {
-                                if (msg.document || msg.photo || msg.video) {
-                                    const fid = msg.document?.file_id || (msg.photo ? msg.photo[msg.photo.length-1].file_id : msg.video.file_id);
-                                    if (!files.some(f => f.tgFileId === fid)) {
-                                        newFiles.push({
-                                            id: Date.now().toString() + count,
-                                            name: msg.document?.file_name || `Mobil_${msg.date}`,
-                                            size: msg.document?.file_size || 0,
-                                            type: msg.document ? 'document' : (msg.photo ? 'image' : 'video'),
-                                            tgFileId: fid,
-                                            messageId: msg.message_id,
-                                            date: new Date(msg.date * 1000).toLocaleDateString('tr-TR'),
-                                            createdAt: msg.date * 1000,
-                                            isFavorite: false,
-                                            isArchived: false,
-                                            isDeleted: false
-                                        });
-                                        count++;
-                                    }
-                                } 
-                                else if (msg.text && !msg.text.startsWith('📝 HUB NOTU:')) {
-                                    if (!files.some(f => f.content === msg.text)) {
-                                        newFiles.push({
-                                            id: Date.now().toString() + count,
-                                            name: "Telefondan Gelen Not",
-                                            content: msg.text,
-                                            messageId: msg.message_id,
-                                            type: 'text',
-                                            date: new Date(msg.date * 1000).toLocaleDateString('tr-TR'),
-                                            createdAt: msg.date * 1000,
-                                            isFavorite: false,
-                                            isArchived: false,
-                                            isDeleted: false
-                                        });
-                                        count++;
-                                    }
-                                }
-                            }
-                        }
-                        if(newFiles.length > 0) setFiles(prev => [...newFiles, ...prev]);
-                        addLog(count > 0 ? `${count} yeni kayıt bulundu.` : "Yeni kayıt yok.");
-                    }
-                } catch (e) { addLog("Hata oluştu.", "error"); }
-                setIsSyncing(false);
-            };
-
-            const toggleArchive = (id) => {
-                setFiles(prev => prev.map(f => f.id === id ? {...f, isArchived: !f.isArchived} : f));
-                addLog("Öğe arşivlendi.");
-            };
-
-            const moveEntryToTrash = (id) => {
-                setFiles(prev => prev.map(f => f.id === id ? {...f, isDeleted: true} : f));
-                addLog("Öğe çöp kutusuna taşındı.");
-            };
-
-            const restoreFromTrash = (id) => {
-                setFiles(prev => prev.map(f => f.id === id ? {...f, isDeleted: false} : f));
-                addLog("Öğe kurtarıldı.");
-            };
-
-            const permanentDelete = async (item) => {
-                if(!confirm('Müdürüm, bu kayıt hem buradan hem Telegram üzerinden TAMAMEN silinecek. Emin misiniz?')) return;
-
-                addLog("Telegram üzerinden imha ediliyor...");
-                try {
-                    const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/deleteMessage?chat_id=${tgConfig.chatId}&message_id=${item.messageId}`);
-                    const result = await res.json();
-
-                    if(result.ok) {
-                        addLog("Telegram'dan silindi.", "success");
-                    } else {
-                        addLog("Telegram notu: " + result.description, "error");
-                    }
-                } catch (e) { addLog("Bağlantı hatası.", "error"); }
-
-                setFiles(prev => prev.filter(f => f.id !== item.id));
-                addLog("Hub hafızasından temizlendi.");
-            };
-
-            const emptyTrash = async () => {
-                if(!confirm('Müdürüm, çöp kutusundaki her şeyi imha edeyim mi?')) return;
-                const toDelete = files.filter(f => f.isDeleted);
-                for(const item of toDelete) {
-                    try {
-                        await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/deleteMessage?chat_id=${tgConfig.chatId}&message_id=${item.messageId}`);
-                    } catch (e) {}
-                }
-                setFiles(prev => prev.filter(f => !f.isDeleted));
-                addLog("Çöp kutusu boşaltıldı.", "success");
-            };
-
-            const filteredFiles = useMemo(() => {
-                return files.filter(f => {
-                    const matchesSearch = f.name?.toLowerCase().includes(searchQuery.toLowerCase()) || f.content?.toLowerCase().includes(searchQuery.toLowerCase());
-                    let matchesTab = false;
-                    
-                    if (activeTab === 'trash') matchesTab = f.isDeleted;
-                    else if (f.isDeleted) return false; // Hide deleted items from other tabs
-                    else if (activeTab === 'archive') matchesTab = f.isArchived;
-                    else if (activeTab === 'starred') matchesTab = f.isFavorite && !f.isArchived;
-                    else if (activeTab === 'all') matchesTab = !f.isArchived;
-                    else matchesTab = f.type === activeTab && !f.isArchived;
-                    
-                    return matchesSearch && matchesTab;
-                }).sort((a, b) => b.createdAt - a.createdAt);
-            }, [files, searchQuery, activeTab]);
-
-            const formatSize = (b) => {
-                if (!b) return '0 B';
-                const i = Math.floor(Math.log(b) / Math.log(1024));
-                return (b / Math.pow(1024, i)).toFixed(1) + ' ' + ['B', 'KB', 'MB', 'GB'][i];
-            };
-
-            if (isLocked) {
-                return (
-                    <div className="h-screen flex items-center justify-center p-4">
-                        <div className="bg-card border p-10 rounded-[2.5rem] text-center max-w-sm w-full animate-fade-in shadow-2xl">
-                            <div className="bg-blue-600/20 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                                <i data-lucide="shield-check" className="text-blue-500 w-8 h-8"></i>
-                            </div>
-                            <h2 className="text-2xl font-black text-main uppercase italic mb-8 tracking-tighter">Arşiv Hub</h2>
-                            <div className="flex justify-center gap-3 mb-10">
-                                {[1,2,3,4].map(i => (
-                                    <div key={i} className={`w-3.5 h-3.5 rounded-full border-2 border-blue-500/20 pin-dot ${pin.length >= i ? 'active' : ''}`} />
-                                ))}
-                            </div>
-                            <div className="grid grid-cols-3 gap-3">
-                                {[1,2,3,4,5,6,7,8,9, 'C', 0, 'OK'].map(n => (
-                                    <button key={n} onClick={() => {
-                                        if (n === 'C') setPin('');
-                                        else if (n === 'OK') handlePinSubmit(pin);
-                                        else if (pin.length < 4) {
-                                            const p = pin + n;
-                                            setPin(p);
-                                            if (p.length === 4) handlePinSubmit(p);
-                                        }
-                                    }} className="h-14 rounded-2xl bg-blue-500/5 hover:bg-blue-600 hover:text-white text-main font-bold text-lg transition-all active:scale-90 border border-current opacity-50 hover:opacity-100">{n}</button>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                );
-            }
-
-            return (
-                <div className="min-h-screen flex flex-col md:flex-row overflow-hidden">
-                    {/* Sidebar */}
-                    <aside className="w-full md:w-72 bg-sidebar border-r p-6 flex flex-col shrink-0 shadow-xl">
-                        <div className="flex items-center justify-between mb-10">
-                            <div className="flex items-center gap-3">
-                                <div className="bg-blue-600 p-2 rounded-xl shadow-lg"><i data-lucide="layout-template" className="text-white"></i></div>
-                                <h1 className="text-xl font-black text-main italic leading-none uppercase tracking-tighter">Arşiv Hub</h1>
-                            </div>
-                            <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-blue-500/10 transition-colors">
-                                <i data-lucide={theme === 'dark' ? 'sun' : 'moon'} className="w-5 h-5 text-blue-500"></i>
-                            </button>
-                        </div>
-
-                        <nav className="space-y-1.5 flex-1 text-slate-500">
-                            <NavItem active={activeTab === 'all'} onClick={() => setActiveTab('all')} iconName="layout-grid" label="Hub Dosyalarım" />
-                            <NavItem active={activeTab === 'starred'} onClick={() => setActiveTab('starred')} iconName="star" label="Favorilerim" />
-                            <NavItem active={activeTab === 'archive'} onClick={() => setActiveTab('archive')} iconName="archive" label="Hub Arşivi" badge={files.filter(f => f.isArchived && !f.isDeleted).length} />
-                            <NavItem active={activeTab === 'trash'} onClick={() => setActiveTab('trash')} iconName="trash-2" label="Çöp Kutusu" colorClass="text-rose-500" badge={files.filter(f => f.isDeleted).length} />
-                            
-                            <div className="pt-4 pb-2 text-[10px] font-black uppercase text-slate-500 tracking-widest px-4">İçerik Türü</div>
-                            <NavItem active={activeTab === 'text'} onClick={() => setActiveTab('text')} iconName="type" label="Metin Notları" />
-                            <NavItem active={activeTab === 'image'} onClick={() => setActiveTab('image')} iconName="image" label="Görseller" />
-                            <NavItem active={activeTab === 'video'} onClick={() => setActiveTab('video')} iconName="film" label="Videolar" />
-                        </nav>
-
-                        <div className="mt-4 p-4 bg-blue-600/5 border border-blue-500/10 rounded-2xl space-y-4">
-                            <button onClick={syncFromTelegram} disabled={isSyncing} className="w-full py-3 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase flex items-center justify-center gap-2 shadow-lg hover:bg-blue-500 transition-all">
-                                <i data-lucide="refresh-cw" className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`}></i> {isSyncing ? 'Senkronize...' : 'Telefondan Çek'}
-                            </button>
-                        </div>
-                        
-                        <div className="mt-4 p-3 bg-black/5 dark:bg-black/40 rounded-xl h-24 overflow-y-auto text-[9px] font-mono custom-scrollbar">
-                            {logs.map((l, i) => <div key={i} className="mb-1 opacity-70"><span className="opacity-40">[{l.time}]</span> <span className={l.type === 'success' ? 'text-blue-500 font-bold' : l.type === 'error' ? 'text-rose-500' : ''}>{l.msg}</span></div>)}
-                            <div ref={logEndRef} />
-                        </div>
-                    </aside>
-
-                    {/* Ana Hub */}
-                    <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                        <header className="h-20 flex items-center justify-between px-6 border-b border-sidebar backdrop-blur-md z-10 shrink-0">
-                            <div className="flex-1 max-w-md relative group">
-                                <i data-lucide="search" className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4 group-focus-within:text-blue-500 transition-colors"></i>
-                                <input type="text" placeholder="Hub'da hızlı ara Müdürüm..." className="w-full bg-slate-500/5 border border-sidebar rounded-2xl py-2.5 pl-12 pr-4 outline-none text-sm focus:border-blue-500/50 transition-all" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                                {activeTab === 'trash' && (
-                                    <button onClick={emptyTrash} className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm font-bold text-xs uppercase px-4">TEMİZLE</button>
-                                )}
-                                <button onClick={() => setIsNoteModalOpen(true)} className="p-2.5 bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white rounded-xl transition-all shadow-sm"><i data-lucide="sticky-note" className="w-5 h-5"></i></button>
-                                <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
-                                <button onClick={() => fileInputRef.current?.click()} className="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 shadow-lg hover:bg-blue-500 active:scale-95 transition-all"><i data-lucide="plus" className="w-4 h-4"></i> YÜKLE</button>
-                                <button onClick={() => setIsLocked(true)} className="p-2.5 bg-slate-500/10 text-slate-400 hover:text-rose-500 rounded-xl transition-all shadow-sm"><i data-lucide="power" className="w-5 h-5"></i></button>
-                            </div>
-                        </header>
-
-                        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-card/10">
-                            {isUploading && (
-                                <div className="mb-8 p-5 bg-blue-600/10 border border-blue-500/20 rounded-[2rem] animate-pulse text-center">
-                                    <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">HUB İŞLEMİ YAPILIYOR...</span>
-                                </div>
-                            )}
-
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-                                {filteredFiles.map(f => (
-                                    <div key={f.id} className="group bg-card border p-6 rounded-[2.5rem] hover:border-blue-500/30 transition-all relative shadow-sm flex flex-col animate-fade-in">
-                                        <div className="flex justify-between items-start mb-6">
-                                            <button onClick={() => {
-                                                setFiles(prev => prev.map(file => file.id === f.id ? {...file, isFavorite: !file.isFavorite} : file));
-                                            }} className={`p-2 rounded-xl transition-all ${f.isFavorite ? 'bg-amber-500/20 text-amber-500' : 'bg-slate-500/10 text-slate-400 hover:text-amber-500'}`}><i data-lucide="star" className="w-4 h-4" fill={f.isFavorite ? 'currentColor' : 'none'}></i></button>
-                                            
-                                            {!f.isDeleted && (
-                                                <button onClick={() => toggleArchive(f.id)} className={`p-2 rounded-xl transition-all ${f.isArchived ? 'bg-blue-600 text-white' : 'bg-slate-500/10 text-slate-400 hover:text-blue-500'}`} title={f.isArchived ? "Hub'a Geri Al" : "Arşive Kaldır"}>
-                                                    <i data-lucide={f.isArchived ? "archive-restore" : "archive"} className="w-4 h-4"></i>
-                                                </button>
-                                            )}
-                                        </div>
-                                        
-                                        <div className="flex justify-center mb-6">
-                                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-all ${f.type==='image'?'bg-emerald-500/10 text-emerald-500':f.type==='video'?'bg-rose-500/10 text-rose-500':f.type==='text'?'bg-blue-400/10 text-blue-400':'bg-blue-500/10 text-blue-500'} group-hover:scale-110 duration-300 shadow-inner`}><i data-lucide={f.type==='image'?'image':f.type==='video'?'film':f.type==='text'?'type':'file-text'} className="w-7 h-7"></i></div>
-                                        </div>
-                                        
-                                        <div className="flex-1 text-center overflow-hidden">
-                                            <h3 className="text-main text-sm font-bold truncate mb-1 tracking-tight uppercase leading-none">{f.name}</h3>
-                                            {f.type === 'text' ? (
-                                                <p className="text-xs text-slate-400 line-clamp-3 italic mb-4">"{f.content}"</p>
-                                            ) : (
-                                                <p className="text-[10px] text-slate-500 font-bold uppercase mb-4 opacity-60">{formatSize(f.size)} • {f.date}</p>
-                                            )}
-                                        </div>
-                                        
-                                        <div className="mt-4 flex gap-2 pt-4 border-t border-slate-500/10 opacity-0 group-hover:opacity-100 transition-all transform translate-y-2 group-hover:translate-y-0">
-                                            {f.isDeleted ? (
-                                                <React.Fragment>
-                                                    <button onClick={() => restoreFromTrash(f.id)} className="flex-1 p-2.5 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-500 transition-all text-[10px] font-bold">KURTAR</button>
-                                                    <button onClick={() => permanentDelete(f)} className="flex-1 p-2.5 bg-rose-500 text-white rounded-xl shadow-lg hover:bg-rose-600 transition-all text-[10px] font-bold">YOK ET</button>
-                                                </React.Fragment>
-                                            ) : (
-                                                <React.Fragment>
-                                                    {f.type === 'text' ? (
-                                                        <button onClick={() => {
-                                                            const dummy = document.createElement("textarea");
-                                                            document.body.appendChild(dummy);
-                                                            dummy.value = f.content;
-                                                            dummy.select();
-                                                            document.execCommand("copy");
-                                                            document.body.removeChild(dummy);
-                                                            addLog("Not kopyalandı.");
-                                                        }} className="flex-1 p-2.5 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-500 transition-all text-[10px] font-bold">KOPYALA</button>
-                                                    ) : (
-                                                        <button onClick={async () => {
-                                                            const res = await fetch(`https://api.telegram.org/bot${tgConfig.botToken}/getFile?file_id=${f.tgFileId}`);
-                                                            const data = await res.json();
-                                                            if(data.ok) window.open(`https://api.telegram.org/file/bot${tgConfig.botToken}/${data.result.file_path}`, '_blank');
-                                                        }} className="flex-1 p-2.5 bg-blue-600 text-white rounded-xl shadow-lg hover:bg-blue-500 transition-all"><i data-lucide="download" className="w-4 h-4 mx-auto"></i></button>
-                                                    )}
-                                                    
-                                                    <button onClick={() => moveEntryToTrash(f.id)} className="flex-1 p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all shadow-sm"><i data-lucide="trash-2" className="w-4 h-4 mx-auto"></i></button>
-                                                </React.Fragment>
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            {filteredFiles.length === 0 && (
-                               <div className="col-span-full py-40 flex flex-col items-center justify-center text-slate-500 opacity-30">
-                                  <i data-lucide="layout-template" className="w-16 h-16 mb-4"></i>
-                                  <p className="text-2xl font-black italic tracking-tighter uppercase">Hub'da Kayıt Yok</p>
-                               </div>
-                            )}
-                        </div>
-                    </main>
-
-                    {/* Metin Notu Modalı */}
-                    {isNoteModalOpen && (
-                        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-in fade-in duration-300">
-                            <div className="bg-card border p-8 rounded-[2.5rem] w-full max-w-lg shadow-2xl">
-                                <h2 className="text-xl font-black text-main uppercase italic mb-6 flex items-center gap-2">
-                                    <i data-lucide="sticky-note" className="text-blue-500 w-6 h-6"></i> Hub Notu Ekle
-                                </h2>
-                                <textarea 
-                                    className="w-full h-40 bg-slate-500/5 border border-sidebar rounded-2xl p-4 outline-none text-main focus:border-blue-500 transition-all mb-6 resize-none"
-                                    placeholder="Buraya notunuzu yazın Müdürüm..."
-                                    value={newNote}
-                                    onChange={(e) => setNewNote(e.target.value)}
-                                ></textarea>
-                                <div className="flex gap-4">
-                                    <button onClick={() => setIsNoteModalOpen(false)} className="flex-1 py-3 bg-slate-500/10 text-slate-400 rounded-xl font-bold transition-all">İPTAL</button>
-                                    <button onClick={handleSendText} className="flex-[2] py-3 bg-blue-600 text-white rounded-xl font-black uppercase shadow-lg hover:bg-blue-500 transition-all">HUB'A GÖNDER</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            );
-        }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+<script type="module" src="js/app.js"></script>
 </body>
 </html>
