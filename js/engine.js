@@ -5,7 +5,7 @@ async function mainHasGpu() {
   try { return !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch { return false; }
 }
 
-export async function createEngine() {
+export async function createEngine(initArgs = {}) {
   let seq = 0;
   const pending = new Map();
   let listener = () => {};
@@ -39,7 +39,7 @@ export async function createEngine() {
     if (ready) {
       worker.onmessage = e => onOut(e.data);
       postIn = (m, t) => worker.postMessage(m, t || []);
-      info = (await call('init')).info;
+      info = (await call('init', initArgs)).info;
       if (!info.gpu && gpuMain) { worker.terminate(); worker = null; postIn = null; } // WebGPU worker'da yok: ana thread
     } else { worker.terminate(); worker = null; }
   } catch { worker = null; }
@@ -52,7 +52,7 @@ export async function createEngine() {
     const { makeHandler } = await import('./handler.js');
     const h = makeHandler(ort, (m) => setTimeout(() => onOut(m), 0));
     postIn = (m) => h(m);
-    info = (await call('init')).info;
+    info = (await call('init', initArgs)).info;
   }
 
   return {

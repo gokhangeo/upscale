@@ -80,61 +80,56 @@ function resizeMask(m, w, h, nw, nh) {
 }
 
 // ---------- büyütme (karo tabanlı) ----------
-// opts: { scale: 2|4, tile, pad, onProgress(p), cancelled() }
+// Karo ızgarası (devam ettirme için dışarıdan da kullanılır)
+export function tileGrid(w, h, tile) {
+  const out = [], tx = Math.ceil(w / tile), ty = Math.ceil(h / tile);
+  for (let y = 0; y < ty; y++) for (let x = 0; x < tx; x++)
+    out.push({ i: out.length, x0: x * tile, y0: y * tile, x1: Math.min(w, (x + 1) * tile), y1: Math.min(h, (y + 1) * tile) });
+  return out;
+}
+// opts: { tile, pad, onProgress(p), cancelled(), done: Map(i -> Uint8ClampedArray RGBA çekirdek), onTile(i, rect, data) }
+// Çıktı her zaman 4x (model ölçeği). Hedef boyuta indirme çağırana aittir.
 export async function upscale(ort, session, img, opts) {
-  const S = 4, scale = opts.scale || 4, tile = opts.tile || 128, pad = opts.pad || 12;
+  const S = 4, tile = opts.tile || 128, pad = opts.pad == null ? 10 : opts.pad;
   const { w, h, data } = img;
-  const out = newImg(w * scale, h * scale), o = out.data;
+  const out = newImg(w * S, h * S), o = out.data, OW = out.w;
   const inName = session.inputNames[0], outName = session.outputNames[0];
-  const tilesX = Math.ceil(w / tile), tilesY = Math.ceil(h / tile), total = tilesX * tilesY;
-  let done = 0;
-  for (let ty = 0; ty < tilesY; ty++) {
-    for (let tx = 0; tx < tilesX; tx++) {
-      if (opts.cancelled && opts.cancelled()) throw new Error('İPTAL');
-      const cx0 = tx * tile, cy0 = ty * tile;
-      const cx1 = Math.min(w, cx0 + tile), cy1 = Math.min(h, cy0 + tile);
-      const ix0 = Math.max(0, cx0 - pad), iy0 = Math.max(0, cy0 - pad);
-      const ix1 = Math.min(w, cx1 + pad), iy1 = Math.min(h, cy1 + pad);
-      const iw = ix1 - ix0, ih = iy1 - iy0, n = iw * ih;
-      const inp = new Float32Array(3 * n);
-      for (let y = 0; y < ih; y++) {
-        let p = ((iy0 + y) * w + ix0) * 4, q = y * iw;
-        for (let x = 0; x < iw; x++, p += 4, q++) {
-          inp[q] = data[p] / 255; inp[n + q] = data[p + 1] / 255; inp[2 * n + q] = data[p + 2] / 255;
-        }
-      }
-      const res = await session.run({ [inName]: new ort.Tensor('float32', inp, [1, 3, ih, iw]) });
-      const t = res[outName];
-      const od = t.data, ow = iw * S, oh = ih * S, on = ow * oh;
-      // çekirdek bölge (4x uzayında)
-      const ox0 = (cx0 - ix0) * S, oy0 = (cy0 - iy0) * S, cw = (cx1 - cx0) * S, ch = (cy1 - cy0) * S;
-      if (scale === 4) {
-        for (let y = 0; y < ch; y++) {
-          let q = ((cy0 * 4 + y) * out.w + cx0 * 4) * 4, s = (oy0 + y) * ow + ox0;
-          for (let x = 0; x < cw; x++, q += 4, s++) {
-            o[q] = od[s] * 255 + 0.5; o[q + 1] = od[on + s] * 255 + 0.5; o[q + 2] = od[2 * on + s] * 255 + 0.5; o[q + 3] = 255;
-          }
-        }
-      } else {
-        // 2x: 4x çıktıyı 2x2 kutu filtresiyle yarıya indir
-        const hw = cw >> 1, hh = ch >> 1;
-        for (let y = 0; y < hh; y++) {
-          let q = ((cy0 * 2 + y) * out.w + cx0 * 2) * 4;
-          const s0 = (oy0 + 2 * y) * ow + ox0, s1 = s0 + ow;
-          for (let x = 0; x < hw; x++, q += 4) {
-            const a = s0 + 2 * x, b = s1 + 2 * x;
-            for (let c = 0; c < 3; c++) {
-              const off = c * on;
-              o[q + c] = (od[off + a] + od[off + a + 1] + od[off + b] + od[off + b + 1]) * 63.75 + 0.5;
-            }
-            o[q + 3] = 255;
-          }
-        }
-      }
-      if (t.dispose) t.dispose();
-      done++;
-      opts.onProgress && opts.onProgress(done / total);
+  const grid = tileGrid(w, h, tile), total = grid.length, done = opts.done || new Map();
+  let n = 0;
+  for (const g of grid) {
+    if (opts.cancelled && opts.cancelled()) throw new Error('İPTAL');
+    const cw = (g.x1 - g.x0) * S, ch = (g.y1 - g.y0) * S;
+    const prev = done.get(g.i);
+    if (prev && prev.length === cw * ch * 4) {
+      for (let y = 0; y < ch; y++) o.set(prev.subarray(y * cw * 4, (y + 1) * cw * 4), ((g.y0 * S + y) * OW + g.x0 * S) * 4);
+      n++; opts.onProgress && opts.onProgress(n / total, true); continue;
     }
+    const ix0 = Math.max(0, g.x0 - pad), iy0 = Math.max(0, g.y0 - pad);
+    const ix1 = Math.min(w, g.x1 + pad), iy1 = Math.min(h, g.y1 + pad);
+    const iw = ix1 - ix0, ih = iy1 - iy0, np = iw * ih;
+    const inp = new Float32Array(3 * np);
+    for (let y = 0; y < ih; y++) {
+      let p = ((iy0 + y) * w + ix0) * 4, q = y * iw;
+      for (let x = 0; x < iw; x++, p += 4, q++) {
+        inp[q] = data[p] / 255; inp[np + q] = data[p + 1] / 255; inp[2 * np + q] = data[p + 2] / 255;
+      }
+    }
+    const res = await session.run({ [inName]: new ort.Tensor('float32', inp, [1, 3, ih, iw]) });
+    const t = res[outName];
+    const od = t.data, ow = iw * S, on = ow * ih * S;
+    const ox0 = (g.x0 - ix0) * S, oy0 = (g.y0 - iy0) * S;
+    const core = opts.onTile ? new Uint8ClampedArray(cw * ch * 4) : null;
+    for (let y = 0; y < ch; y++) {
+      let q = ((g.y0 * S + y) * OW + g.x0 * S) * 4, s = (oy0 + y) * ow + ox0;
+      for (let x = 0; x < cw; x++, q += 4, s++) {
+        o[q] = od[s] * 255 + 0.5; o[q + 1] = od[on + s] * 255 + 0.5; o[q + 2] = od[2 * on + s] * 255 + 0.5; o[q + 3] = 255;
+      }
+      if (core) core.set(o.subarray(((g.y0 * S + y) * OW + g.x0 * S) * 4, ((g.y0 * S + y) * OW + g.x0 * S + cw) * 4), y * cw * 4);
+    }
+    if (t.dispose) t.dispose();
+    if (core) opts.onTile(g.i, core);
+    n++;
+    opts.onProgress && opts.onProgress(n / total, false);
   }
   return out;
 }
@@ -238,19 +233,33 @@ export async function restoreFaces(ort, faceSess, img, faces, opts) {
       const ratio = 1 / Math.hypot(M[0], M[3]);
       if (ratio > 1.3) st *= clamp(1 - (ratio - 1.3) / 2.5, 0.35, 1);
     }
-    pasteBack(img, outT.data, M, size, st);
+    pasteBack(img, outT.data, M, size, st, opts.keepDetail == null ? 0.7 : opts.keepDetail);
     i++;
     opts.onProgress && opts.onProgress(i / list.length);
   }
   return list.length;
 }
 
-function pasteBack(img, face, M, size, strength) {
+function pasteBack(img, face, M, size, strength, keepDetail) {
   const { w, h, data } = img, n = size * size, Mi = invert(M);
-  // yüz karesinin görüntüdeki sınırları
   const cs = [[0, 0], [size, 0], [0, size], [size, size]].map(([x, y]) => [Mi[0] * x + Mi[1] * y + Mi[2], Mi[3] * x + Mi[4] * y + Mi[5]]);
   const x0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[0])))), x1 = Math.min(w, Math.ceil(Math.max(...cs.map(c => c[0]))));
   const y0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[1])))), y1 = Math.min(h, Math.ceil(Math.max(...cs.map(c => c[1]))));
+  if (x1 <= x0 || y1 <= y0) return;
+  // yüz, model çözünürlüğünden büyükse: orijinalin ince detayını (gözenek, kıl) geri ekle → plastik görünüm olmaz
+  const ratio = 1 / Math.hypot(M[0], M[3]);
+  const rw = x1 - x0, rh = y1 - y0;
+  let hp = null;
+  if (ratio > 1.2 && keepDetail > 0) {
+    const r = Math.max(1, Math.round(ratio * 0.6));
+    const reg = newImg(rw, rh);
+    for (let y = 0; y < rh; y++) reg.data.set(data.subarray(((y0 + y) * w + x0) * 4, ((y0 + y) * w + x1) * 4), y * rw * 4);
+    const bl = boxBlurRGB(reg, r, 2);
+    hp = new Float32Array(rw * rh * 3);
+    for (let i = 0, j = 0; i < rw * rh; i++, j += 3) {
+      hp[j] = (reg.data[i * 4] - bl.data[i * 4]) * keepDetail; hp[j + 1] = (reg.data[i * 4 + 1] - bl.data[i * 4 + 1]) * keepDetail; hp[j + 2] = (reg.data[i * 4 + 2] - bl.data[i * 4 + 2]) * keepDetail;
+    }
+  }
   const erode = size * 0.04, feather = size * 0.12;
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const u = M[0] * (x + 0.5) + M[1] * (y + 0.5) + M[2] - 0.5, v = M[3] * (x + 0.5) + M[4] * (y + 0.5) + M[5] - 0.5;
@@ -259,12 +268,13 @@ function pasteBack(img, face, M, size, strength) {
     if (dEdge <= 0) continue;
     let m = Math.min(1, dEdge / feather); m = m * m * (3 - 2 * m); m *= strength;
     const ux = Math.floor(u), vy = Math.floor(v), ux1 = Math.min(size - 1, ux + 1), vy1 = Math.min(size - 1, vy + 1), dx = u - ux, dy = v - vy;
-    const p = (y * w + x) * 4;
+    const p = (y * w + x) * 4, hj = hp ? ((y - y0) * rw + (x - x0)) * 3 : 0;
     for (let c = 0; c < 3; c++) {
       const o = c * n;
       const f00 = face[o + vy * size + ux], f01 = face[o + vy * size + ux1], f10 = face[o + vy1 * size + ux], f11 = face[o + vy1 * size + ux1];
       let val = (f00 + (f01 - f00) * dx) * (1 - dy) + (f10 + (f11 - f10) * dx) * dy;
       val = (clamp(val, -1, 1) + 1) * 127.5;
+      if (hp) val += hp[hj + c];
       data[p + c] = data[p + c] * (1 - m) + val * m;
     }
   }

@@ -3,10 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Netlik – Yapay Zekâ Foto</title>
-<meta name="description" content="Fotoğrafları telefonda yapay zekâ ile büyüt, yüzleri iyileştir, arka planı düzenle. Fotoğraf cihazdan çıkmaz.">
-<meta name="theme-color" content="#0b0b12" media="(prefers-color-scheme: dark)">
-<meta name="theme-color" content="#f3f4fa" media="(prefers-color-scheme: light)">
+<title>Netlik – Yapay Zekâ Foto Stüdyosu</title>
+<meta name="description" content="Fotoğrafları telefonda yapay zekâ ile iyileştir, büyüt, arka planı değiştir, profil resmi yap. Fotoğraf cihazdan çıkmaz.">
+<meta name="theme-color" content="#0a0a10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,9 +13,17 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/app.css?v=3">
 <script>
-  (function(){var t=localStorage.getItem('netlik-tema')||'sistem';var d=t==='koyu'||(t==='sistem'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';})();
+  (function(){var t=localStorage.getItem('netlik-tema')||'koyu';var d=t==='koyu'||(t==='sistem'&&matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light';})();
+  // GitHub Pages COOP/COEP veremiyor: servis çalışanı ekler → çok çekirdekli CPU hızlandırma
+  (function(){
+    if (window.crossOriginIsolated || !('serviceWorker' in navigator) || !window.isSecureContext || localStorage.getItem('netlik-coi') === '0') return;
+    navigator.serviceWorker.register('sw.js').then(function(){
+      var reload=function(){ if(!sessionStorage.getItem('coiR')){ sessionStorage.setItem('coiR','1'); location.reload(); } };
+      if (navigator.serviceWorker.controller) reload(); else navigator.serviceWorker.addEventListener('controllerchange', reload);
+    }).catch(function(){});
+  })();
 </script>
 </head>
 <body>
@@ -24,114 +31,71 @@
 <div id="splash">
   <div class="splash-logo"><img src="icons/icon-192.png" alt=""><div class="splash-ring"></div></div>
   <div class="splash-name">Netlik</div>
-  <div class="splash-sub">Yapay zekâ ile netleştir</div>
+  <div class="splash-sub">Yapay zekâ foto stüdyosu</div>
 </div>
 
-<header class="topbar">
-  <h1 id="title">Stüdyo</h1>
-  <button class="chip" id="engineChip" title="Hızlandırma"><span class="dot"></span><span id="engineTxt">Hazırlanıyor</span></button>
-</header>
-
 <main id="views">
-  <!-- STÜDYO -->
-  <section class="view active" id="v-studio">
-    <div id="empty" class="hero">
-      <div class="orb o1"></div><div class="orb o2"></div>
-      <h2>Fotoğrafını<br><span class="grad">netleştir</span></h2>
-      <p>Yapay zekâ ile 2×/4× büyüt, yüzleri doğal şekilde iyileştir, arka planı düzenle.</p>
-      <div class="hero-btns">
-        <button class="btn primary big press" id="pickBtn">
-          <svg viewBox="0 0 24 24"><path d="M4 5h3l2-2h6l2 2h3a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
-          Fotoğraf seç</button>
+  <!-- ANA SAYFA -->
+  <section class="view active" id="v-home">
+    <header class="home-top">
+      <h1>Netlik</h1>
+      <div class="top-actions">
+        <button class="chip" id="engineChip" title="Hızlandırma"><span class="dot"></span><span id="engineTxt">Hazırlanıyor</span></button>
+        <button class="round-btn press" id="setBtn" aria-label="Ayarlar"><svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a7.6 7.6 0 0 0 0-3l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2.6-1.5L14 2.5h-4l-.4 2.5A7.5 7.5 0 0 0 7 6.5l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 0 0 0 3l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2.6 1.5l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 2.6-1.5l2.4 1 2-3.4-2-1.6Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
       </div>
-      <div class="privacy"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Fotoğrafın telefonundan hiç çıkmaz</div>
-      <div class="features">
-        <div class="feat"><svg viewBox="0 0 24 24"><path d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><span>4× Büyütme</span></div>
-        <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.5 14.5c1 1.3 2.2 2 3.5 2s2.5-.7 3.5-2M9 10h.01M15 10h.01" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg><span>Yüz iyileştirme</span></div>
-        <div class="feat"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><rect x="2.5" y="2.5" width="19" height="19" rx="4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2 3"/></svg><span>Arka plan</span></div>
-        <div class="feat"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.7 1.5-1.5 0-1.2-1-1.3-1-2.5 0-.8.7-1.5 1.5-1.5H16a5 5 0 0 0 5-5c0-4.1-4-7.5-9-7.5Z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="7.5" cy="11" r="1.3" fill="currentColor"/><circle cx="10" cy="7" r="1.3" fill="currentColor"/><circle cx="15" cy="7.5" r="1.3" fill="currentColor"/></svg><span>Renk</span></div>
-      </div>
+    </header>
+    <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="homeSearch" placeholder="Araç ara: arka plan, profil, büyüt…" autocomplete="off"></div>
+    <div class="cats" id="cats">
+      <button class="on" data-c="all">Tümü</button><button data-c="edit">Düzenle</button><button data-c="portrait">Portre</button><button data-c="social">Sosyal</button><button data-c="ai">YZ</button>
     </div>
 
-    <div id="work" hidden>
-      <div class="stage" id="stage">
-        <div class="cwrap" id="cwrap">
-          <div class="zoomer" id="zoomer">
-            <canvas id="cBefore"></canvas>
-            <canvas id="cAfter"></canvas>
-          </div>
-          <div class="divider" id="divider"><div class="knob"><svg viewBox="0 0 24 24"><path d="m9 6-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
-          <span class="tag l" id="tagL">Önce</span><span class="tag r" id="tagR">Sonra</span>
-        </div>
-      </div>
-      <div class="stage-bar">
-        <button class="icon-btn press" id="newBtn" title="Yeni fotoğraf"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-        <div class="dims" id="dims">–</div>
-        <button class="icon-btn press" id="zoomBtn" title="Yakınlaştır"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5M11 8v6M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
-      </div>
+    <button class="hero-card press" data-tool="enhance" data-cat="edit portrait ai" data-k="görsel iyileştirici netleştir kalite düzelt">
+      <div class="hc-media"><img src="img/enh_before.jpg" alt="" class="hb"><img src="img/enh_after.jpg" alt="" class="ha"><i class="hc-line"></i></div>
+      <div class="hc-txt"><span class="badge">Tek dokunuş</span><b>Görsel İyileştirici</b><small>Işık, renk, gürültü, yüz ve netlik – birkaç saniyede</small></div>
+    </button>
 
-      <div id="resultBar" class="result-bar" hidden>
-        <button class="btn primary press" id="shareBtn"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Kaydet / Paylaş</button>
-        <button class="btn soft press" id="continueBtn">Sonuçla devam et</button>
-      </div>
-
-      <div class="seg tools" id="toolSeg">
-        <button data-v="up" class="on">Büyüt</button>
-        <button data-v="bg">Arka plan</button>
-        <button data-v="color">Renk</button>
-        <i class="seg-pill"></i>
-      </div>
-
-      <div class="panels">
-        <div class="panel on" data-tool="up">
-          <div class="row"><label>Kalite</label>
-            <div class="seg small" data-opt="model"><button data-v="fast">Hızlı</button><button data-v="best">En iyi</button><i class="seg-pill"></i></div></div>
-          <div class="row"><label>Ölçek</label>
-            <div class="seg small" data-opt="scale"><button data-v="2">2×</button><button data-v="4">4×</button><i class="seg-pill"></i></div></div>
-          <div class="row"><label>Yüz iyileştirme</label><label class="switch"><input type="checkbox" id="faceOn"><span></span></label></div>
-          <div id="faceOpts" class="sub-opts">
-            <div class="row"><label>Model</label>
-              <div class="seg small" data-opt="faceModel"><button data-v="gpen">Doğal</button><button data-v="codeformer">Güçlü</button><i class="seg-pill"></i></div></div>
-            <div class="slider-row"><div class="slider-labels"><span>Doğal</span><span>Pürüzsüz</span></div>
-              <input type="range" min="0" max="100" value="40" id="faceS"></div>
-          </div>
-          <div class="hint" id="upHint"></div>
-        </div>
-
-        <div class="panel" data-tool="bg">
-          <div class="row"><label>Mod</label>
-            <div class="seg small" data-opt="bgMode"><button data-v="blur">Bulanık</button><button data-v="remove">Sil</button><i class="seg-pill"></i></div></div>
-          <div class="slider-row" id="bgAmountRow"><div class="slider-labels"><span>Hafif</span><span>Güçlü bulanıklık</span></div>
-            <input type="range" min="10" max="100" value="60" id="bgAmount"></div>
-          <div class="hint">Portre (insan) fotoğrafları için en iyisi. Model: 13 MB, bir kez indirilir. "Sil" şeffaf PNG verir.</div>
-        </div>
-
-        <div class="panel" data-tool="color">
-          <div class="row"><label>Otomatik düzelt</label><label class="switch"><input type="checkbox" id="cAuto" checked><span></span></label></div>
-          <div class="slider-row"><div class="slider-labels"><span>Parlaklık</span><output id="o_brightness">0</output></div><input type="range" min="-100" max="100" value="0" data-c="brightness"></div>
-          <div class="slider-row"><div class="slider-labels"><span>Kontrast</span><output id="o_contrast">0</output></div><input type="range" min="-100" max="100" value="0" data-c="contrast"></div>
-          <div class="slider-row"><div class="slider-labels"><span>Doygunluk</span><output id="o_saturation">0</output></div><input type="range" min="-100" max="100" value="0" data-c="saturation"></div>
-          <div class="slider-row"><div class="slider-labels"><span>Sıcaklık</span><output id="o_warmth">0</output></div><input type="range" min="-100" max="100" value="0" data-c="warmth"></div>
-          <div class="slider-row"><div class="slider-labels"><span>Netlik</span><output id="o_sharpen">30</output></div><input type="range" min="0" max="100" value="30" data-c="sharpen"></div>
-          <button class="link-btn" id="colorReset">Sıfırla</button>
-        </div>
-      </div>
-
-      <button class="btn primary big press run" id="runBtn"><span class="shine"></span><span id="runTxt">Büyüt</span></button>
+    <h3 class="sec">Popüler düzenleme araçları</h3>
+    <div class="tool-grid" id="toolGrid">
+      <button class="tcard press" data-tool="editor" data-cat="edit social" data-k="arka planı kaldır sil şeffaf editör metin gölge"><div class="tc-img" style="background-image:url(img/t_cut.jpg)"></div><b>Arka planı kaldır</b></button>
+      <button class="tcard press" data-tool="resize" data-cat="edit social" data-k="yeniden boyutlandır instagram hikaye kare boyut"><div class="tc-img" style="background-image:url(img/t_resize.jpg)"></div><b>Yeniden boyutlandır</b></button>
+      <button class="tcard press" data-tool="faces" data-cat="portrait edit ai" data-k="yüz iyileştir rötuş gpen"><div class="tc-img" style="background-image:url(img/t_face.jpg)"></div><b>Yüz iyileştir</b></button>
+      <button class="tcard press" data-tool="upscale" data-cat="edit ai" data-k="büyüt yz çözünürlük artırma 2x 4x upscale"><div class="tc-img" style="background-image:url(img/t_up.jpg)"></div><b>YZ büyütme</b></button>
+      <button class="tcard press" data-tool="profile" data-cat="portrait social" data-k="profil resmi linkedin whatsapp vesikalık avatar"><div class="tc-img" style="background-image:url(img/t_profile.jpg)"></div><b>Profil resmi</b></button>
+      <button class="tcard press" data-tool="bgscene" data-cat="portrait edit" data-k="arka plan değiştir manzara stüdyo bulanık"><div class="tc-img" style="background-image:url(img/t_scene.jpg)"></div><b>Arka plan değiştir</b></button>
+      <button class="tcard press ai" data-tool="ai" data-cat="ai portrait social" data-k="ai stüdyo gemini kıyafet takım elbise sahne ürün"><div class="tc-img" style="background-image:url(img/t_ai.jpg)"></div><b>AI Stüdyo</b></button>
+      <button class="tcard press" data-tool="color" data-cat="edit" data-k="renk parlaklık kontrast sıcaklık"><div class="tc-img" style="background-image:url(img/t_color.jpg)"></div><b>Renk</b></button>
     </div>
+
+    <div class="sec-row"><h3 class="sec">Fotoğraf düzenleme klasikleri</h3><button class="link" id="fxAll">Tümü</button></div>
+    <div class="carousel" id="fxCarousel"></div>
+
+    <div class="sec-row"><h3 class="sec">Birden fazla görseli düzenle</h3></div>
+    <div class="carousel">
+      <button class="ccard press" data-batch="enhance"><div class="cc-img" style="background-image:url(img/t_face.jpg)"></div><b>Toplu iyileştir</b></button>
+      <button class="ccard press" data-batch="upscale"><div class="cc-img" style="background-image:url(img/t_up.jpg)"></div><b>Toplu büyüt</b></button>
+      <button class="ccard press" data-batch="cut"><div class="cc-img" style="background-image:url(img/t_cut.jpg)"></div><b>Toplu arka plan sil</b></button>
+    </div>
+    <div class="privacy"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m9 12 2 2 4-4" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Fotoğrafların cihazında işlenir (AI Stüdyo hariç)</div>
+    <div id="resumeBox" class="resume" hidden><div><b>Yarım kalan işlem</b><small id="resumeTxt"></small></div><button class="btn primary sm press" id="resumeBtn">Devam et</button><button class="x-btn" id="resumeDel" aria-label="Sil">✕</button></div>
+  </section>
+
+  <!-- YZ ARAÇLARI -->
+  <section class="view" id="v-ai">
+    <header class="page-top"><h1>YZ araçları</h1></header>
+    <div class="ai-list" id="aiList"></div>
+    <div class="sec-row"><h3 class="sec">Fotoğraf düzenleme klasikleri</h3></div>
+    <div class="fx-grid" id="fxGrid"></div>
   </section>
 
   <!-- TOPLU -->
   <section class="view" id="v-batch">
+    <header class="page-top"><h1>Toplu</h1></header>
     <div class="card">
-      <div class="card-title">Toplu büyütme</div>
-      <div class="row"><label>Kalite</label>
-        <div class="seg small" data-opt="bModel"><button data-v="fast">Hızlı</button><button data-v="best">En iyi</button><i class="seg-pill"></i></div></div>
-      <div class="row"><label>Ölçek</label>
+      <div class="row"><label>İşlem</label>
+        <div class="seg small" data-opt="bMode"><button data-v="enhance">İyileştir</button><button data-v="upscale">Büyüt</button><button data-v="cut">Arka plan sil</button><i class="seg-pill"></i></div></div>
+      <div class="row" id="bScaleRow"><label>Ölçek</label>
         <div class="seg small" data-opt="bScale"><button data-v="2">2×</button><button data-v="4">4×</button><i class="seg-pill"></i></div></div>
-      <div class="row"><label>Yüz iyileştirme</label><label class="switch"><input type="checkbox" id="bFace"><span></span></label></div>
-      <div class="row"><label>Otomatik renk</label><label class="switch"><input type="checkbox" id="bColor"><span></span></label></div>
-      <div class="hint">Yüz modeli ve ayarı Stüdyo'daki seçimi kullanır. İşlem sırasında uygulamayı açık tutun.</div>
+      <div class="hint">İşlem sırasında ekranı açık tut: iPhone uygulama arka plandayken işlemi durdurur.</div>
     </div>
     <div class="batch-actions">
       <button class="btn soft press" id="bPick">Fotoğrafları seç</button>
@@ -139,27 +103,236 @@
     </div>
     <ul class="queue" id="queue"></ul>
     <button class="btn primary press wide" id="bShare" hidden>Tümünü kaydet / paylaş</button>
-    <div class="empty-note" id="bEmpty">Birden çok fotoğraf seçin; hepsi sırayla işlenir ve Geçmiş'e kaydedilir.</div>
+    <div class="empty-note" id="bEmpty">Birden çok fotoğraf seç; hepsi sırayla işlenir ve İçerik'e kaydedilir.</div>
   </section>
 
-  <!-- GEÇMİŞ -->
+  <!-- İÇERİK -->
   <section class="view" id="v-history">
+    <header class="page-top"><h1>İçerik</h1></header>
     <div class="grid" id="hGrid"></div>
     <div class="empty-note" id="hEmpty">Henüz sonuç yok. İşlediğin fotoğraflar burada (yalnızca bu cihazda) saklanır.</div>
     <button class="link-btn danger" id="hClear" hidden>Geçmişi temizle</button>
   </section>
+</main>
 
-  <!-- AYARLAR -->
-  <section class="view" id="v-settings">
+<nav class="tabbar" id="tabbar">
+  <i class="tab-pill" id="tabPill"></i>
+  <button data-tab="home" class="on"><svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1v-8Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Ana sayfa</span></button>
+  <button data-tab="ai"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.6L12 15l-1.8-4.4L5.5 9l4.7-1.4L12 3ZM18 15l.8 2 2 .8-2 .7-.8 2-.8-2-2-.7 2-.8.8-2Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg><span>YZ araçları</span></button>
+  <button data-tab="batch"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4h11a2 2 0 0 1 2 2v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Toplu</span></button>
+  <button data-tab="history"><svg viewBox="0 0 24 24"><rect x="3.5" y="3.5" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.8" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>İçerik</span></button>
+</nav>
+<button class="fab press" id="fab"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>Bir görseli düzenle</button>
+
+<!-- ARAÇ EKRANI -->
+<section class="screen" id="toolScreen" aria-hidden="true">
+  <header class="tool-top">
+    <button class="round-btn press" id="toolBack" aria-label="Geri"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2 id="toolTitle">Araç</h2>
+    <div class="tt-actions">
+      <button class="round-btn press" id="undoBtn" aria-label="Geri al" hidden><svg viewBox="0 0 24 24"><path d="M9 7 4 12l5 5M4 12h11a5 5 0 0 1 0 10h-2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="round-btn press" id="eyeBtn" aria-label="Orijinali göster"><svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="1.8"/></svg></button>
+      <button class="round-btn press" id="shareTop" aria-label="Paylaş"><svg viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5M5 14v5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+  </header>
+  <div class="stage" id="stage">
+    <div class="cwrap" id="cwrap">
+      <div class="zoomer" id="zoomer">
+        <canvas id="cBefore"></canvas>
+        <canvas id="cAfter"></canvas>
+      </div>
+      <div class="divider" id="divider"><div class="knob"><svg viewBox="0 0 24 24"><path d="m9 6-6 6 6 6M15 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+      <span class="tag l">Önce</span><span class="tag r">Sonra</span>
+    </div>
+    <div class="dims" id="dims"></div>
+  </div>
+
+  <div class="tool-panel" id="toolPanel">
+    <!-- iyileştirici -->
+    <div class="panel" data-p="enhance">
+      <div class="row"><label>Boyut</label><div class="seg small" data-opt="enhSize"><button data-v="same">Aynı</button><button data-v="2x">2× detaylı</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Yüzleri iyileştir</label><label class="switch"><input type="checkbox" id="enhFace"><span></span></label></div>
+      <div class="slider-row"><div class="slider-labels"><span>Yoğunluk</span><output id="o_enhAmt">70</output></div><input type="range" min="20" max="100" value="70" id="enhAmt"></div>
+      <div class="hint" id="enhHint"></div>
+    </div>
+    <!-- büyüt -->
+    <div class="panel" data-p="upscale">
+      <div class="row"><label>Kalite</label><div class="seg small" data-opt="model"><button data-v="fast">Hızlı</button><button data-v="best">En iyi</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Ölçek</label><div class="seg small" data-opt="scale"><button data-v="2">2×</button><button data-v="4">4×</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Yüz iyileştirme</label><label class="switch"><input type="checkbox" id="faceOn"><span></span></label></div>
+      <div class="hint" id="upHint"></div>
+    </div>
+    <!-- yüz -->
+    <div class="panel" data-p="faces">
+      <div class="row"><label>Model</label><div class="seg small" data-opt="faceModel"><button data-v="gpen">Doğal</button><button data-v="codeformer">Güçlü</button><i class="seg-pill"></i></div></div>
+      <div class="slider-row" id="faceBlendRow"><div class="slider-labels"><span>Güç</span><output id="o_faceBlend">75</output></div><input type="range" min="0" max="100" value="75" id="faceBlend"></div>
+      <div class="hint" id="faceHint">Yalnızca yüzler iyileştirilir; fotoğrafın geri kalanı aynı kalır. Birkaç saniye sürer.</div>
+    </div>
+    <!-- editör / arka plan -->
+    <div class="panel" data-p="editor">
+      <div class="ed-tabs" id="edTabs">
+        <button data-e="bg" class="on"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m3 16 5-5 4 4 3-3 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>Arka planlar</button>
+        <button data-e="text"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>Metin</button>
+        <button data-e="shadow"><svg viewBox="0 0 24 24"><circle cx="11" cy="9" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><ellipse cx="12" cy="19" rx="7" ry="2" fill="currentColor" opacity=".45"/></svg>Gölge</button>
+        <button data-e="size"><svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 10v4M16 10v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>Boyut</button>
+        <button data-e="fx"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18V3Z" fill="currentColor" opacity=".5"/><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Efektler</button>
+      </div>
+      <div class="ed-pane on" data-e="bg">
+        <div class="swatches" id="bgList"></div>
+        <div class="row tight" id="harmRow"><label>Renk uyumu</label><label class="switch"><input type="checkbox" id="harmOn" checked><span></span></label></div>
+        <div class="slider-row" id="bgBlurRow" hidden><div class="slider-labels"><span>Bulanıklık</span></div><input type="range" min="10" max="100" value="60" id="bgBlur"></div>
+      </div>
+      <div class="ed-pane" data-e="text">
+        <div class="text-row"><input id="txtIn" placeholder="Metin yaz…" maxlength="60"><button class="btn primary sm press" id="txtAdd">Ekle</button></div>
+        <div class="swatches small" id="txtColors"></div>
+        <div class="slider-row"><div class="slider-labels"><span>Yazı boyutu</span></div><input type="range" min="3" max="20" value="8" id="txtSize"></div>
+        <div class="hint">Metni sürükleyerek taşı. Seçili metni silmek için kutuyu boşaltıp "Ekle"ye bas.</div>
+      </div>
+      <div class="ed-pane" data-e="shadow">
+        <div class="row tight"><label>Gölge</label><label class="switch"><input type="checkbox" id="shOn"><span></span></label></div>
+        <div class="slider-row"><div class="slider-labels"><span>Yumuşaklık</span></div><input type="range" min="0" max="100" value="55" id="shSoft"></div>
+        <div class="slider-row"><div class="slider-labels"><span>Koyuluk</span></div><input type="range" min="0" max="100" value="45" id="shDark"></div>
+      </div>
+      <div class="ed-pane" data-e="size"><button class="btn soft wide press" id="edResize">Boyut seç (Instagram, hikâye…)</button><div class="hint">Özneyi sürükleyerek/iki parmakla büyüterek konumlandır.</div></div>
+      <div class="ed-pane" data-e="fx"><div class="fx-row" id="edFx"></div></div>
+    </div>
+    <!-- profil -->
+    <div class="panel" data-p="profile">
+      <div class="row"><label>Önizleme</label><div class="seg small" data-opt="pfShape"><button data-v="circle">Daire</button><button data-v="square">Kare</button><i class="seg-pill"></i></div></div>
+      <div class="swatches" id="pfBgList"></div>
+      <div class="row tight"><label>Yüzü iyileştir</label><label class="switch"><input type="checkbox" id="pfFace"><span></span></label></div>
+      <div class="slider-row"><div class="slider-labels"><span>Yakınlaştır</span></div><input type="range" min="70" max="160" value="100" id="pfZoom"></div>
+    </div>
+    <!-- boyut -->
+    <div class="panel" data-p="resize">
+      <button class="size-pick press" id="rzPick"><span id="rzName">Instagram gönderisi</span><small id="rzSub">1080×1080 · 1:1</small><svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <div class="row"><label>Yerleşim</label><div class="seg small" data-opt="rzFit"><button data-v="fit">Sığdır</button><button data-v="fill">Doldur</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Boşluk</label><div class="seg small" data-opt="rzBg"><button data-v="blur">Bulanık</button><button data-v="extend">Uzat</button><button data-v="color">Renk</button><i class="seg-pill"></i></div></div>
+      <div class="swatches small" id="rzColors" hidden></div>
+      <div class="hint">Fotoğrafı sürükle veya iki parmakla büyüt.</div>
+    </div>
+    <!-- efekt -->
+    <div class="panel" data-p="effects">
+      <div class="fx-row" id="fxRow"></div>
+      <div class="slider-row" id="fxAmtRow"><div class="slider-labels"><span>Yoğunluk</span></div><input type="range" min="10" max="100" value="60" id="fxAmt"></div>
+    </div>
+    <!-- renk -->
+    <div class="panel" data-p="color">
+      <div class="row tight"><label>Otomatik düzelt</label><label class="switch"><input type="checkbox" id="cAuto" checked><span></span></label></div>
+      <div class="slider-row"><div class="slider-labels"><span>Parlaklık</span><output id="o_brightness">0</output></div><input type="range" min="-100" max="100" value="0" data-c="brightness"></div>
+      <div class="slider-row"><div class="slider-labels"><span>Kontrast</span><output id="o_contrast">0</output></div><input type="range" min="-100" max="100" value="0" data-c="contrast"></div>
+      <div class="slider-row"><div class="slider-labels"><span>Doygunluk</span><output id="o_saturation">0</output></div><input type="range" min="-100" max="100" value="0" data-c="saturation"></div>
+      <div class="slider-row"><div class="slider-labels"><span>Sıcaklık</span><output id="o_warmth">0</output></div><input type="range" min="-100" max="100" value="0" data-c="warmth"></div>
+      <div class="slider-row"><div class="slider-labels"><span>Netlik</span><output id="o_sharpen">30</output></div><input type="range" min="0" max="100" value="30" data-c="sharpen"></div>
+      <button class="link-btn" id="colorReset">Sıfırla</button>
+    </div>
+  </div>
+  <div class="tool-bottom">
+    <button class="btn primary big press run" id="runBtn"><span class="shine"></span><span id="runTxt">Uygula</span></button>
+    <div class="result-bar" id="resultBar" hidden>
+      <button class="btn soft press" id="continueBtn">Devam et</button>
+      <button class="btn primary press" id="saveBtn">Kaydet</button>
+    </div>
+  </div>
+</section>
+
+<!-- AI STÜDYO -->
+<section class="screen" id="aiScreen" aria-hidden="true">
+  <header class="tool-top">
+    <button class="round-btn press" id="aiBack" aria-label="Kapat"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <h2>AI Stüdyo</h2>
+    <div class="tt-actions"><button class="round-btn press" id="aiKeyBtn" aria-label="API anahtarı"><svg viewBox="0 0 24 24"><circle cx="8" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="m11 12 9-9M17 6l2 2M15 8l2 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button></div>
+  </header>
+  <div class="ai-body">
+    <div class="ai-head"><h3 id="aiPresetTitle">Ürün sahnesi</h3><p id="aiPresetSub">Hikâye anlatan, yaşam tarzını gösteren çarpıcı görseller oluştur</p></div>
+    <div class="ai-examples" id="aiExamples"></div>
+    <div class="ai-presets" id="aiPresets"></div>
+    <div class="ai-result" id="aiResult" hidden><img id="aiOut" alt=""><div class="ai-res-actions"><button class="btn soft press" id="aiCompare">Önce / Sonra</button><button class="btn soft press" id="aiAgain">Tekrar</button><button class="btn primary press" id="aiSave">Kaydet</button></div></div>
+  </div>
+  <div class="ai-sheet">
+    <div class="ai-input">
+      <button class="ai-thumb press" id="aiThumb"><img id="aiThumbImg" alt="" hidden><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <textarea id="aiPrompt" rows="2" placeholder="Her şeyi tanımla"></textarea>
+    </div>
+    <div class="ai-chips">
+      <button class="pill-chip press" id="aiQual">1K Standart</button>
+      <button class="pill-chip press" id="aiRatio">Oran: Orijinal</button>
+      <button class="send press" id="aiSend" aria-label="Oluştur"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    </div>
+    <div class="ai-note">Fotoğraf Google Gemini'ye gönderilir; kendi API anahtarın kullanılır ve kullanım başına ücret alınabilir.</div>
+  </div>
+</section>
+
+<!-- İŞLENİYOR (tam ekran tarama) -->
+<section class="proc" id="proc" aria-hidden="true">
+  <header><h2 id="procTitle">İşleniyor</h2><button class="round-btn press" id="procX" aria-label="Durdur"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button></header>
+  <div class="proc-media"><div class="proc-frame" id="procFrame"><canvas id="procCanvas"></canvas><i class="scan"></i><i class="scan-glow"></i></div></div>
+  <div class="proc-info">
+    <div class="proc-stage" id="procStage">Hazırlanıyor…</div>
+    <div class="proc-sub"><span id="procPct">0%</span> · <span id="procEta">Bu biraz sürebilir…</span></div>
+    <div class="proc-bar"><i id="procBar"></i></div>
+    <div class="proc-tip">Uygulama arka planda durur, ekran açık kalsın.</div>
+    <button class="pill press" id="procStop">Oluşturmayı durdur</button>
+  </div>
+</section>
+
+<!-- Görsel seç -->
+<div class="scrim" id="pickScrim"></div>
+<div class="sheet" id="pickSheet">
+  <div class="grabber"></div>
+  <div class="sheet-title">Bir görsel seç</div>
+  <div class="pick-grid">
+    <button class="press" data-src="gallery"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="9" cy="10" r="2" fill="currentColor"/><path d="m4 18 5-5 4 4 3-3 5 5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Fotoğraf galerisi</button>
+    <button class="press" data-src="camera"><svg viewBox="0 0 24 24"><path d="M4 7h3l2-2.5h6L17 7h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="13" r="3.5" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Kamera</button>
+    <button class="press" data-src="files"><svg viewBox="0 0 24 24"><path d="M4 6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>Dosyalar</button>
+    <button class="press" data-src="paste"><svg viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 4V3h6v1" stroke="currentColor" stroke-width="1.8"/></svg>Pano</button>
+    <button class="press" data-src="last" id="pickLast" hidden><img id="pickLastImg" alt="">Son fotoğraf</button>
+  </div>
+</div>
+
+<!-- Boyut listesi -->
+<section class="screen sizes" id="sizeScreen" aria-hidden="true">
+  <header class="tool-top">
+    <button class="round-btn press" id="sizeX" aria-label="Kapat"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></button>
+    <h2>Tekrar boyutlandır</h2><div class="tt-actions"></div>
+  </header>
+  <div class="size-list" id="sizeList"></div>
+  <div class="size-search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="m16 16 4.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><input id="sizeQ" placeholder="Arayın" autocomplete="off"></div>
+</section>
+
+<!-- Ayarlar -->
+<section class="screen" id="setScreen" aria-hidden="true">
+  <header class="tool-top">
+    <button class="round-btn press" id="setX" aria-label="Kapat"><svg viewBox="0 0 24 24"><path d="m15 5-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Ayarlar</h2><div class="tt-actions"></div>
+  </header>
+  <div class="set-body">
     <div class="card">
       <div class="card-title">Görünüm</div>
-      <div class="row"><label>Tema</label>
-        <div class="seg small" data-opt="theme"><button data-v="sistem">Sistem</button><button data-v="koyu">Koyu</button><button data-v="acik">Açık</button><i class="seg-pill"></i></div></div>
+      <div class="row"><label>Tema</label><div class="seg small" data-opt="theme"><button data-v="sistem">Sistem</button><button data-v="koyu">Koyu</button><button data-v="acik">Açık</button><i class="seg-pill"></i></div></div>
     </div>
     <div class="card">
       <div class="card-title">Hızlandırma</div>
       <div class="kv"><span>Motor</span><b id="sEngine">–</b></div>
+      <div class="kv"><span>CPU çekirdeği</span><b id="sThreads">–</b></div>
+      <div class="kv"><span>Son kullanılan</span><b id="sLastEp">–</b></div>
       <div class="hint" id="sEngineHint"></div>
+      <div class="hint mono" id="sGpuErr" hidden></div>
+      <button class="link-btn" id="gpuRetry" hidden>GPU'yu yeniden dene</button>
+      <div class="row"><label>CPU'da büyütme</label><div class="seg small" data-opt="cpuBudget"><button data-v="0.6">Hızlı</button><button data-v="1.2">Dengeli</button><button data-v="2.4">Kaliteli</button><i class="seg-pill"></i></div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">AI Stüdyo (Google Gemini)</div>
+      <div class="hint">Kıyafet değiştirme ve yeni sahne üretme cihazda yapılamaz; kendi Gemini API anahtarınla çalışır. Anahtar yalnızca bu cihazda (tarayıcı belleği) saklanır. Anahtar al: aistudio.google.com/api-keys</div>
+      <div class="key-row"><input id="gemKey" type="password" placeholder="Gemini API anahtarı (AIza…)" autocomplete="off" spellcheck="false"><button class="btn soft sm press" id="gemSave">Kaydet</button></div>
+      <div class="row"><label>Model</label>
+        <select id="gemModel" class="sel">
+          <option value="gemini-nano-banana-2.1">Nano Banana 2.1 (önerilen)</option>
+          <option value="gemini-3.1-flash-lite-image">Nano Banana 2 Lite (en ucuz)</option>
+          <option value="gemini-3-pro-image">Nano Banana Pro (en kaliteli)</option>
+          <option value="gemini-2.5-flash-image">Gemini 2.5 Flash Image (eski)</option>
+        </select></div>
+      <button class="link-btn danger" id="gemDel">Anahtarı sil</button>
     </div>
     <div class="card">
       <div class="card-title">Yapay zekâ modelleri</div>
@@ -169,36 +342,11 @@
     </div>
     <div class="card about">
       <div class="card-title">Hakkında</div>
-      <p>Netlik tamamen tarayıcında çalışır; fotoğraflar hiçbir sunucuya gönderilmez. Modeller Hugging Face'ten indirilir.</p>
-      <p class="small">Real-ESRGAN (BSD-3), SCRFD/InsightFace, GPEN, CodeFormer (S-Lab lisansı – yalnızca ticari olmayan/kişisel kullanım), MODNet (Apache-2.0), ONNX Runtime Web (MIT).</p>
+      <p>Netlik tarayıcında çalışır; fotoğraflar sunucuya gönderilmez (AI Stüdyo hariç: o özellik fotoğrafı senin anahtarınla Google'a gönderir).</p>
+      <p class="small">Real-ESRGAN (BSD-3), SCRFD/InsightFace, GPEN, CodeFormer (S-Lab lisansı – yalnızca kişisel kullanım), ORMBG (Apache-2.0), ONNX Runtime Web (MIT). Hazır arka planlar yapay zekâ ile üretildi.</p>
     </div>
-  </section>
-</main>
-
-<nav class="tabbar" id="tabbar">
-  <i class="tab-pill" id="tabPill"></i>
-  <button data-tab="studio" class="on"><svg viewBox="0 0 24 24"><path d="M12 3l2.2 5.1L19 9l-3.8 3.4L16.3 18 12 15.2 7.7 18l1.1-5.6L5 9l4.8-.9L12 3Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg><span>Stüdyo</span></button>
-  <button data-tab="batch"><svg viewBox="0 0 24 24"><rect x="3" y="7" width="13" height="13" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M8 4h11a2 2 0 0 1 2 2v11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Toplu</span></button>
-  <button data-tab="history"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 7.5V12l3 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg><span>Geçmiş</span></button>
-  <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="16" cy="7" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="10" cy="17" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg><span>Ayarlar</span></button>
-</nav>
-
-<!-- İlerleme -->
-<div class="scrim" id="progScrim"></div>
-<div class="sheet" id="progSheet">
-  <div class="grabber"></div>
-  <div class="ring-wrap">
-    <svg class="ring" viewBox="0 0 120 120">
-      <defs><linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8b5cf6"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
-      <circle cx="60" cy="60" r="52" class="ring-bg"/>
-      <circle cx="60" cy="60" r="52" class="ring-fg" id="ringFg"/>
-    </svg>
-    <div class="ring-txt" id="ringTxt">0%</div>
   </div>
-  <div class="prog-stage" id="progStage">Hazırlanıyor…</div>
-  <div class="prog-sub" id="progSub">&nbsp;</div>
-  <button class="btn soft press" id="cancelBtn">İptal</button>
-</div>
+</section>
 
 <!-- Geçmiş görüntüleyici -->
 <div class="scrim" id="hvScrim"></div>
@@ -208,16 +356,23 @@
   <div class="hv-meta" id="hvMeta"></div>
   <div class="hv-actions">
     <button class="btn primary press" id="hvShare">Kaydet / Paylaş</button>
-    <button class="btn soft press" id="hvEdit">Stüdyoda aç</button>
+    <button class="btn soft press" id="hvEdit">Düzenle</button>
     <button class="btn soft danger press" id="hvDel">Sil</button>
   </div>
 </div>
 
+<!-- Seçim menüsü -->
+<div class="scrim" id="menuScrim"></div>
+<div class="sheet" id="menuSheet"><div class="grabber"></div><div class="sheet-title" id="menuTitle"></div><div class="menu-list" id="menuList"></div></div>
+
 <div id="toast"></div>
 <input type="file" id="fileIn" accept="image/*" hidden>
+<input type="file" id="camIn" accept="image/*" capture="environment" hidden>
+<input type="file" id="docIn" accept="image/*,.heic,.png,.jpg,.jpeg,.webp" hidden>
+<input type="file" id="bgFileIn" accept="image/*" hidden>
 <input type="file" id="bFileIn" accept="image/*" multiple hidden>
 <label id="hapticLbl" aria-hidden="true" style="position:fixed;left:-99px;top:-99px;opacity:0"><input type="checkbox" switch id="hapticSw"></label>
 
-<script type="module" src="js/app.js"></script>
+<script type="module" src="js/app.js?v=3"></script>
 </body>
 </html>
