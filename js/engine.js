@@ -1,5 +1,5 @@
 // Worker ya da ana thread üzerinde çalışan motor köprüsü
-import { ORT_URL, ORT_BASE } from './config.js?v=11';
+import { ORT_URL, ORT_BASE } from './config.js?v=12';
 
 async function mainHasGpu() {
   try { return !!(navigator.gpu && await navigator.gpu.requestAdapter()); } catch { return false; }
@@ -27,7 +27,7 @@ export async function createEngine(initArgs = {}) {
   const gpuMain = await mainHasGpu();
   let worker = null;
   try {
-    worker = new Worker(new URL('./worker.js?v=11', import.meta.url), { type: 'module' });
+    worker = new Worker(new URL('./worker.js?v=12', import.meta.url), { type: 'module' });
     const ready = await new Promise((res) => {
       const t = setTimeout(() => res(false), 20000);
       worker.onmessage = e => {
@@ -49,7 +49,7 @@ export async function createEngine(initArgs = {}) {
     mode = 'main';
     const ort = await import(ORT_URL);
     ort.env.wasm.wasmPaths = ORT_BASE;
-    const { makeHandler } = await import('./handler.js?v=11');
+    const { makeHandler } = await import('./handler.js?v=12');
     const h = makeHandler(ort, (m) => setTimeout(() => onOut(m), 0));
     postIn = (m) => h(m);
     info = (await call('init', initArgs)).info;

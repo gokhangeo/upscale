@@ -1,6 +1,6 @@
 // Model yönetimi + işler. Worker'da (ya da gerekirse ana thread'de) çalışır.
-import * as C from './core.js?v=11';
-import * as F from './fx.js?v=11';
+import * as C from './core.js?v=12';
+import * as F from './fx.js?v=12';
 
 const HF = 'https://huggingface.co/OwlMaster/AllFilesRope/resolve/d783e61585b3d83a85c91ca8a3b299e8ade94d72/';
 export const MODELS = {
@@ -14,7 +14,8 @@ export const MODELS = {
 };
 const CACHE = 'bulut-models-v1';
 const IOS_DEV = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const MEM_BUDGET_MB = IOS_DEV ? 50 : (300);
+const ANDROID_DEV = /Android/i.test(navigator.userAgent);
+  const MEM_BUDGET_MB = IOS_DEV ? 50 : ANDROID_DEV ? 120 : (300);
 export const TILE = 256;
 
 export function makeHandler(ort, post) {
@@ -288,8 +289,8 @@ export function makeHandler(ort, post) {
     if (!faces.length) throw new Error('Fotoğrafta yüz bulunamadı');
     const out = { w: src.w, h: src.h, data: new Uint8ClampedArray(src.data) };
     let m = model, st = a.s ?? 0.4;
-    // iPhone/CPU: CodeFormer (188 MB, fp16) çalışmıyor ve belleği taşırıyor → GPEN tam güç + cilt pürüzsüzleştirme
-    if (m === 'codeformer' && (IOS_DEV || !gpuOK || gpuOff.has('codeformer'))) { m = 'gpen'; st = Math.max(st, 0.9); }
+    // iPhone/Android/CPU: CodeFormer (Android'de sekme çöküp sayfa baştan açılıyordu) (188 MB, fp16) çalışmıyor ve belleği taşırıyor → GPEN tam güç + cilt pürüzsüzleştirme
+    if (m === 'codeformer' && (IOS_DEV || ANDROID_DEV || !gpuOK || gpuOff.has('codeformer'))) { m = 'gpen'; st = Math.max(st, 0.9); }
     try {
       await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
     } catch (e) {

@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=11';
-import { MODELS } from './handler.js?v=11';
-import * as C from './core.js?v=11';
-import * as F from './fx.js?v=11';
-import * as DB from './db.js?v=11';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=11';
-import * as AI from './ai.js?v=11';
+import { createEngine } from './engine.js?v=12';
+import { MODELS } from './handler.js?v=12';
+import * as C from './core.js?v=12';
+import * as F from './fx.js?v=12';
+import * as DB from './db.js?v=12';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=12';
+import * as AI from './ai.js?v=12';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -212,6 +212,8 @@ function drawDisplay(canvas, img, maxSide = DISP) {
 const fname = (blob, tag) => 'netlik-' + tag + '-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + (blob.type === 'image/png' ? '.png' : '.jpg');
 async function shareBlobs(items) {
   const files = items.map(i => new File([i.blob], i.name, { type: i.blob.type }));
+  // Android: paylaş menüsünde "telefona kaydet" yok → doğrudan indir (Galeri/İndirilenler)
+  if (/Android/i.test(navigator.userAgent)) { for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); } toast('Telefona kaydedildi ✓ (İndirilenler)', 3000); return true; }
   try { if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files }); return true; } }
   catch (e) { if (e.name === 'AbortError') return true; if (e.name === 'NotAllowedError') return false; }
   for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); }
