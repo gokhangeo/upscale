@@ -1,6 +1,6 @@
 // Model yönetimi + işler. Worker'da (ya da gerekirse ana thread'de) çalışır.
-import * as C from './core.js?v=7';
-import * as F from './fx.js?v=7';
+import * as C from './core.js?v=8';
+import * as F from './fx.js?v=8';
 
 const HF = 'https://huggingface.co/OwlMaster/AllFilesRope/resolve/d783e61585b3d83a85c91ca8a3b299e8ade94d72/';
 export const MODELS = {
@@ -289,8 +289,19 @@ export function makeHandler(ort, post) {
     const out = { w: src.w, h: src.h, data: new Uint8ClampedArray(src.data) };
     let m = model, st = a.s ?? 0.4;
     // iPhone/CPU: CodeFormer (188 MB, fp16) çalışmıyor ve belleği taşırıyor → GPEN tam güç + cilt pürüzsüzleştirme
-    if (m === 'codeformer' && (IOS_DEV || !gpuOK)) { m = 'gpen'; st = Math.max(st, 0.9); }
-    await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
+    if (m === 'codeformer' && (IOS_DEV || !gpuOK || gpuOff.has('codeformer'))) { m = 'gpen'; st = Math.max(st, 0.9); }
+    try {
+      await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
+    } catch (e) {
+      if (m !== 'codeformer' || isCancelled()) throw e;
+      // CodeFormer (fp16) bu cihazda açılamadı (ör. CPU'da Cast(double) çekirdeği yok) → GPEN tam güç
+      post({ type: 'gpuFail', key: 'codeformer', text: String(e && e.message || e) });
+      try { const s = sessions.get('codeformer'); if (s) { await s.sess?.release?.(); sessions.delete('codeformer'); } } catch {}
+      gpuOff.add('codeformer');
+      m = 'gpen'; st = Math.max(st, 0.9);
+      out.data.set(src.data);
+      await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
+    }
     if (model === 'codeformer') { stage('Cilt pürüzsüzleştiriliyor…', 0.92); smoothSkin(out, faces, 0.35 + 0.6 * (a.s ?? 0.4)); }
     return { out, info: { faces: faces.length, restored: true } };
   }
