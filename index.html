@@ -267,7 +267,7 @@
       <button class="pill-chip press" id="aiRatio">Oran: Orijinal</button>
       <button class="send press" id="aiSend" aria-label="Oluştur"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
-    <div class="ai-note">Fotoğraf Google Gemini'ye gönderilir; kendi API anahtarın kullanılır ve kullanım başına ücret alınabilir.</div>
+    <div class="ai-note" id="aiNote">Fotoğraf Pollinations'a gönderilir; ücretsiz Pollen bakiyen kullanılır.</div>
   </div>
 </section>
 
@@ -329,6 +329,17 @@
       <button class="link-btn" id="gpuRetry" hidden>GPU'yu yeniden dene</button>
       <div class="row"><label>CPU'da büyütme</label><div class="seg small" data-opt="cpuBudget"><button data-v="0.6">Hızlı</button><button data-v="1.2">Dengeli</button><button data-v="2.4">Kaliteli</button><i class="seg-pill"></i></div></div>
     </div>
+    <div class="card" id="polCard">
+      <div class="card-title">AI Stüdyo – Pollinations (ücretsiz)</div>
+      <div class="hint">Ücretsiz Pollinations hesabınla çalışır; görevlerle (Quest) kazanılan ücretsiz Pollen ile kıyafet, sahne ve ürün fotoğrafı üretir. Kontext görsel başı ~0,03, Klein ~0,005 Pollen. Anahtar yalnızca bu cihazda saklanır.</div>
+      <div class="row"><label>Kullanılan servis</label>
+        <select id="aiProv" class="sel"><option value="pollinations">Pollinations (ücretsiz)</option><option value="gemini">Google Gemini</option></select></div>
+      <div class="hint" id="polState">Bağlı değil</div>
+      <button class="btn primary press" id="polConnect" style="width:100%;margin:8px 0">Pollinations ile bağlan</button>
+      <div class="key-row"><input id="polKey" type="password" placeholder="ya da sk_… anahtarını yapıştır" autocomplete="off" spellcheck="false"><button class="btn soft sm press" id="polSave">Kaydet</button></div>
+      <div class="row"><label>Model</label><select id="polModel" class="sel"></select></div>
+      <button class="link-btn danger" id="polDel">Bağlantıyı kaldır</button>
+    </div>
     <div class="card">
       <div class="card-title">AI Stüdyo (Google Gemini)</div>
       <div class="hint">Kıyafet değiştirme ve yeni sahne üretme cihazda yapılamaz; kendi Gemini API anahtarınla çalışır. Anahtar yalnızca bu cihazda (tarayıcı belleği) saklanır. Anahtar al: aistudio.google.com/api-keys</div>
@@ -382,6 +393,6 @@
 <input type="file" id="colIn" accept="image/*" multiple hidden>
 <label id="hapticLbl" aria-hidden="true" style="position:fixed;left:-99px;top:-99px;opacity:0"><input type="checkbox" switch id="hapticSw"></label>
 
-<script type="module" src="js/app.js?v=9"></script>
+<script type="module" src="js/app.js?v=10"></script>
 </body>
 </html>

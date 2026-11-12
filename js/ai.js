@@ -95,3 +95,104 @@ export async function geminiEdit({ key, model, prompt, blob, aspect, size, signa
   for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
   return new Blob([u8], { type: d.mimeType || d.mime_type || 'image/png' });
 }
+
+// ---------------- Pollinations (ücretsiz Quest Pollen ile) ----------------
+// Anahtar: "Pollinations ile bağlan" (OAuth PKCE, Netlik App Key) ya da elle yapıştırılan sk_ anahtarı. Yalnızca bu cihazda.
+export const POL_APP_KEY = 'pk_c9eoiB18vZ9w68qb';
+export const POL_REDIRECT = 'https://gokhangeo.github.io/upscale/';
+export const POL_KEY_LS = 'netlik-pol-key', POL_EXP_LS = 'netlik-pol-exp', POL_MODEL_LS = 'netlik-pol-model', PROV_LS = 'netlik-ai-prov';
+export const POL_DEFAULT_MODEL = 'black-forest-labs/flux.1-kontext-pro';
+export const POL_MODELS = [
+  ['black-forest-labs/flux.1-kontext-pro', 'FLUX Kontext Pro (önerilen, ~0,03 Pollen)'],
+  ['black-forest-labs/flux.2-klein-4b', 'FLUX.2 Klein (en ucuz, ~0,005 Pollen)'],
+  ['microsoft/mai-image-2.6-flash', 'MAI Image 2.6 Flash'],
+  ['microsoft/mai-image-2.6', 'MAI Image 2.6 (kaliteli)'],
+];
+const POL_API = 'https://gen.pollinations.ai/v1/images/edits';
+const b64url = u8 => btoa(String.fromCharCode(...u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+export function provider() {
+  const p = localStorage.getItem(PROV_LS);
+  if (p) return p;
+  return localStorage.getItem(KEY_LS) && !localStorage.getItem(POL_KEY_LS) ? 'gemini' : 'pollinations';
+}
+export function polKey() {
+  const k = localStorage.getItem(POL_KEY_LS), exp = +localStorage.getItem(POL_EXP_LS) || 0;
+  if (k && exp && Date.now() > exp) { localStorage.removeItem(POL_KEY_LS); localStorage.removeItem(POL_EXP_LS); return null; }
+  return k;
+}
+
+export async function polConnect() {
+  const ver = b64url(crypto.getRandomValues(new Uint8Array(32)));
+  const chal = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver))));
+  const state = b64url(crypto.getRandomValues(new Uint8Array(12)));
+  localStorage.setItem('netlik-pol-pkce', JSON.stringify({ ver, state, t: Date.now() }));
+  const q = new URLSearchParams({ response_type: 'code', client_id: POL_APP_KEY, redirect_uri: POL_REDIRECT, scope: 'usage', models: 'image', budget: '10', expiry: '30', state, code_challenge: chal, code_challenge_method: 'S256' });
+  location.href = 'https://enter.pollinations.ai/authorize?' + q;
+}
+
+// Uygulama açılışında: ?code=…&state=… ile dönüldüyse anahtarı al. true = bağlandı
+export async function polHandleRedirect() {
+  const u = new URL(location.href), code = u.searchParams.get('code'), state = u.searchParams.get('state'), err = u.searchParams.get('error');
+  if (!code && !err) return null;
+  history.replaceState(null, '', u.pathname);
+  let pk = null; try { pk = JSON.parse(localStorage.getItem('netlik-pol-pkce') || 'null'); } catch {}
+  localStorage.removeItem('netlik-pol-pkce');
+  if (err) throw new Error('Pollinations izni verilmedi');
+  if (!pk || pk.state !== state) throw new Error('Pollinations bağlantısı doğrulanamadı, tekrar dene');
+  const r = await fetch('https://enter.pollinations.ai/api/oauth/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'authorization_code', code, client_id: POL_APP_KEY, redirect_uri: POL_REDIRECT, code_verifier: pk.ver }),
+  });
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok || !j || !j.access_token) throw new Error('Pollinations anahtarı alınamadı' + (j && (j.error_description || j.error) ? ' (' + (j.error_description || j.error) + ')' : ''));
+  localStorage.setItem(POL_KEY_LS, j.access_token);
+  if (j.expires_in) localStorage.setItem(POL_EXP_LS, String(Date.now() + j.expires_in * 1000 - 60000)); else localStorage.removeItem(POL_EXP_LS);
+  localStorage.setItem(PROV_LS, 'pollinations');
+  return true;
+}
+
+export async function polBalance(key) {
+  try {
+    const r = await fetch('https://gen.pollinations.ai/account/balance', { headers: { Authorization: 'Bearer ' + key } });
+    if (!r.ok) return null; const j = await r.json(); return typeof j.balance === 'number' ? j.balance : null;
+  } catch { return null; }
+}
+
+function polSize(aspect, q) {
+  const [a, b] = (aspect || '1:1').split(':').map(Number); const base = q === '1K' ? 1024 : 1536;
+  const k = Math.sqrt(base * base / (a * b)); const r8 = v => Math.max(256, Math.round(v / 16) * 16);
+  return r8(a * k) + 'x' + r8(b * k);
+}
+
+export async function polEdit({ key, model, prompt, blob, aspect, size, signal }) {
+  if (!key) throw new Error('Pollinations bağlı değil');
+  const dataUri = 'data:' + (blob.type || 'image/jpeg') + ';base64,' + await blobToB64(blob);
+  let r;
+  try {
+    r = await fetch(POL_API, {
+      method: 'POST', signal,
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify({ model, prompt, image: [{ image_url: dataUri }], size: polSize(aspect, size), response_format: 'b64_json' }),
+    });
+  } catch (e) {
+    if (e.name === 'AbortError') throw e;
+    throw new Error('Pollinations\'a bağlanılamadı (internet?)');
+  }
+  let j = null; try { j = await r.json(); } catch {}
+  if (!r.ok) {
+    const m = (j && ((j.error && (j.error.message || j.error)) || j.message)) || ('HTTP ' + r.status);
+    if (r.status === 401) throw new Error('Pollinations anahtarı geçersiz ya da süresi doldu – Ayarlar\'dan yeniden bağlan');
+    if (r.status === 402) throw new Error('Pollen bakiyesi bitti – enter.pollinations.ai'de görev (Quest) tamamlayarak ücretsiz Pollen kazanabilirsin');
+    if (r.status === 429) throw new Error('Çok sık istek – birkaç saniye sonra tekrar dene');
+    throw new Error(typeof m === 'string' ? m : JSON.stringify(m).slice(0, 200));
+  }
+  const d = j && j.data && j.data[0];
+  if (d && d.b64_json) {
+    const bin = atob(d.b64_json), u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new Blob([u8], { type: bin.startsWith('\x89PNG') ? 'image/png' : 'image/jpeg' });
+  }
+  if (d && d.url) { const ir = await fetch(d.url, { signal }); if (ir.ok) return await ir.blob(); }
+  throw new Error('Görsel üretilemedi');
+}

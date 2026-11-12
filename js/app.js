@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=9';
-import { MODELS } from './handler.js?v=9';
-import * as C from './core.js?v=9';
-import * as F from './fx.js?v=9';
-import * as DB from './db.js?v=9';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=9';
-import * as AI from './ai.js?v=9';
+import { createEngine } from './engine.js?v=10';
+import { MODELS } from './handler.js?v=10';
+import * as C from './core.js?v=10';
+import * as F from './fx.js?v=10';
+import * as DB from './db.js?v=10';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=10';
+import * as AI from './ai.js?v=10';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -946,20 +946,21 @@ $('#aiQual').addEventListener('click', () => { haptic(); S.aiQual = { '1K': '2K'
 $('#aiRatio').addEventListener('click', () => { haptic(); openMenu('En-boy oranı', [['orig', 'Orijinal'], ...AI.RATIOS.map(r => [r, r + ({ '1:1': ' Kare', '3:2': ' Yatay', '2:3': ' Dikey', '9:16': ' Hikâye', '16:9': ' Geniş', '4:5': ' Portre', '3:4': ' Portre', '4:3': ' Yatay' }[r] || '')])], S.aiRatio, v => { S.aiRatio = v; saveS(); renderAiPreset(); }); });
 $('#aiSend').addEventListener('click', async () => {
   haptic();
-  const key = localStorage.getItem(AI.KEY_LS);
-  if (!key) { toast('Önce Gemini API anahtarını ekle', 3500); openSettings(true); return; }
+  const prov = AI.provider();
+  const key = prov === 'gemini' ? localStorage.getItem(AI.KEY_LS) : AI.polKey();
+  if (!key) { toast(prov === 'gemini' ? 'Önce Gemini API anahtarını ekle' : 'Önce Pollinations\'a bağlan (ücretsiz)', 3500); openSettings(true); return; }
   if (!ai.img || !ai.blob) { toast('Önce bir fotoğraf seç'); $('#aiThumb').click(); return; }
   const text = $('#aiPrompt').value;
   if (ai.preset.id === 'free' && !text.trim()) { toast('Ne yapılacağını yaz'); $('#aiPrompt').focus(); return; }
   const prompt = AI.buildPrompt(ai.preset, text);
   const aspect = S.aiRatio === 'orig' ? AI.nearestRatio(ai.img.w, ai.img.h) : S.aiRatio;
-  const model = localStorage.getItem(AI.MODEL_LS) || AI.DEFAULT_MODEL;
+  const model = prov === 'gemini' ? (localStorage.getItem(AI.MODEL_LS) || AI.DEFAULT_MODEL) : (localStorage.getItem(AI.POL_MODEL_LS) || AI.POL_DEFAULT_MODEL);
   aiAbort = new AbortController();
   busy = true; keepAwake(true); showProc('AI Stüdyo', ai.img);
-  $('#procStage').textContent = 'Gemini oluşturuyor…'; $('#procEta').textContent = 'Genellikle 10–40 sn';
+  $('#procStage').textContent = (prov === 'gemini' ? 'Gemini' : 'Pollinations') + ' oluşturuyor…'; $('#procEta').textContent = 'Genellikle 10–40 sn';
   let p = 0; prog.fake = setInterval(() => { p = Math.min(0.92, p + (0.95 - p) * 0.04); procProgress(p, 'Genellikle 10–40 sn'); }, 400);
   try {
-    const blob = await AI.geminiEdit({ key, model, prompt, blob: ai.blob, aspect, size: S.aiQual, signal: aiAbort.signal });
+    const blob = await (prov === 'gemini' ? AI.geminiEdit : AI.polEdit)({ key, model, prompt, blob: ai.blob, aspect, size: S.aiQual, signal: aiAbort.signal });
     ai.out = blob; ai.outUrl && URL.revokeObjectURL(ai.outUrl); ai.outUrl = URL.createObjectURL(blob);
     $('#aiOut').src = ai.outUrl; $('#aiResult').hidden = false; $('#aiExamples').hidden = true; ai.showBefore = false;
     const t = await thumbOf(await loadImage(ai.outUrl).then(i => { const c = document.createElement('canvas'); c.width = i.naturalWidth; c.height = i.naturalHeight; c.getContext('2d').drawImage(i, 0, 0); return c; }), false);
@@ -987,8 +988,32 @@ function openSettings(focusKey) {
   $$('#setScreen .seg').forEach(s => s._ctl && s._ctl.set(S[s.dataset.opt], false));
   const k = localStorage.getItem(AI.KEY_LS); $('#gemKey').value = k ? '••••••••' + k.slice(-4) : '';
   $('#gemModel').value = localStorage.getItem(AI.MODEL_LS) || AI.DEFAULT_MODEL;
-  if (focusKey) setTimeout(() => { $('#gemKey').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 400);
+  renderPol();
+  if (focusKey) setTimeout(() => { $('#polCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 400);
 }
+// ---------------- Pollinations ----------------
+$('#polModel').innerHTML = AI.POL_MODELS.map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
+function aiNote() { const el = $('#aiNote'); if (el) el.textContent = AI.provider() === 'gemini' ? 'Fotoğraf Google Gemini\'ye gönderilir; kendi API anahtarın kullanılır ve kullanım başına ücret alınabilir.' : 'Fotoğraf Pollinations\'a gönderilir; ücretsiz Pollen bakiyen kullanılır.'; }
+async function renderPol() {
+  $('#aiProv').value = AI.provider(); $('#polModel').value = localStorage.getItem(AI.POL_MODEL_LS) || AI.POL_DEFAULT_MODEL; aiNote();
+  const k = AI.polKey(); $('#polKey').value = k ? '••••••••' + k.slice(-4) : '';
+  $('#polConnect').textContent = k ? 'Yeniden bağlan' : 'Pollinations ile bağlan';
+  $('#polState').textContent = k ? 'Bağlı ✓' : 'Bağlı değil – ücretsiz GitHub hesabınla bağlan';
+  if (k) { const b = await AI.polBalance(k); if (b != null) $('#polState').textContent = 'Bağlı ✓ · Bakiye: ' + b.toFixed(2) + ' Pollen'; }
+}
+$('#aiProv').addEventListener('change', e => { localStorage.setItem(AI.PROV_LS, e.target.value); aiNote(); });
+$('#polModel').addEventListener('change', e => localStorage.setItem(AI.POL_MODEL_LS, e.target.value));
+$('#polConnect').addEventListener('click', () => { haptic(); AI.polConnect().catch(e => toast('Hata: ' + e.message, 5000)); });
+$('#polKey').addEventListener('focus', e => { if (e.target.value.startsWith('••')) e.target.value = ''; });
+$('#polSave').addEventListener('click', () => {
+  haptic(); const v = $('#polKey').value.trim();
+  if (!v || v.startsWith('••')) return toast('Anahtarı yapıştır');
+  if (!/^sk_[A-Za-z0-9_\-]{10,}$/.test(v)) return toast('sk_ ile başlayan gizli anahtarı yapıştır');
+  localStorage.setItem(AI.POL_KEY_LS, v); localStorage.removeItem(AI.POL_EXP_LS); localStorage.setItem(AI.PROV_LS, 'pollinations'); renderPol(); toast('Anahtar bu cihaza kaydedildi');
+});
+$('#polDel').addEventListener('click', () => { haptic(); localStorage.removeItem(AI.POL_KEY_LS); localStorage.removeItem(AI.POL_EXP_LS); renderPol(); toast('Bağlantı kaldırıldı'); });
+AI.polHandleRedirect().then(ok => { if (ok) { toast('Pollinations bağlandı ✓ AI Stüdyo artık ücretsiz', 4000); openSettings(true); } }).catch(e => toast(e.message, 5000));
+aiNote();
 $('#setX').addEventListener('click', () => { haptic(); closeScreen('setScreen'); });
 $('#gemSave').addEventListener('click', () => {
   haptic(); const v = $('#gemKey').value.trim();

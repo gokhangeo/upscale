@@ -1,6 +1,6 @@
 // Model çalıştırma worker'ı (arayüz akıcı kalsın diye)
-import { ORT_URL, ORT_BASE } from './config.js?v=9';
-import { makeHandler } from './handler.js?v=9';
+import { ORT_URL, ORT_BASE } from './config.js?v=10';
+import { makeHandler } from './handler.js?v=10';
 let handler = null;
 const queue = [];
 const post = (m, t) => self.postMessage(m, t || []);
