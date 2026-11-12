@@ -1,6 +1,6 @@
 // Model yönetimi + işler. Worker'da (ya da gerekirse ana thread'de) çalışır.
-import * as C from './core.js?v=17';
-import * as F from './fx.js?v=17';
+import * as C from './core.js?v=18';
+import * as F from './fx.js?v=18';
 
 const HF = 'https://huggingface.co/OwlMaster/AllFilesRope/resolve/d783e61585b3d83a85c91ca8a3b299e8ade94d72/';
 export const MODELS = {
@@ -26,10 +26,11 @@ export function makeHandler(ort, post) {
     ort.env.logLevel = 'error';
     const coi = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
     const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-    ort.env.wasm.numThreads = coi ? Math.max(1, Math.min(ios ? 2 : 4, navigator.hardwareConcurrency || 2)) : 1;
+    // iPhone: çok iş parçacıklı WASM (paylaşılan bellek) ve WebGPU sayfayı çökertiyor / siyah çıktı veriyordu → tek iş parçacığı, yalnız CPU
+    ort.env.wasm.numThreads = ios ? 1 : coi ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)) : 1;
     gpuOff = new Set((a && a.gpuOff) || []);
     try {
-      if (typeof navigator !== 'undefined' && navigator.gpu && !(a && a.noGpu)) {
+      if (!ios && typeof navigator !== 'undefined' && navigator.gpu && !(a && a.noGpu)) {
         const ad = await navigator.gpu.requestAdapter();
         gpuOK = !!ad;
       }
@@ -249,6 +250,8 @@ export function makeHandler(ort, post) {
   }
 
   // Yüz bölgesinde kenar koruyan cilt yumuşatma (guided filter, oval maskeyle karışım)
+  // Cilt pürüzsüzleştirme: hızlı guided filter. Katsayılar küçültülmüş bölgede hesaplanır (bellek ~0,25 MP başına sabit;
+  // önceden tam çözünürlükte onlarca dizi açılıp telefonda sekme çöküyordu), sonra çift doğrusal büyütülüp uygulanır.
   function smoothSkin(im, faces, amt) {
     const W = im.w, H = im.h, d = im.data;
     for (const f of faces) {
@@ -256,31 +259,46 @@ export function makeHandler(ort, post) {
       const x0 = Math.max(0, Math.floor(bx0 - bw * 0.1)), y0 = Math.max(0, Math.floor(by0 - bh * 0.15));
       const x1 = Math.min(W, Math.ceil(bx1 + bw * 0.1)), y1 = Math.min(H, Math.ceil(by1 + bh * 0.1));
       const w = x1 - x0, h = y1 - y0; if (w < 8 || h < 8) continue;
-      const n = w * h, r = Math.max(2, Math.round(Math.min(w, h) * 0.025)), eps = 0.012 * (0.5 + amt);
-      const box = (a) => { const t = new Float32Array(n), o = new Float32Array(n);
-        for (let y = 0; y < h; y++) { let acc = 0; const row = y * w;
-          for (let x = -r; x <= r; x++) acc += a[row + Math.min(w - 1, Math.max(0, x))];
-          for (let x = 0; x < w; x++) { t[row + x] = acc / (2 * r + 1); acc += a[row + Math.min(w - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
-        for (let x = 0; x < w; x++) { let acc = 0;
-          for (let y = -r; y <= r; y++) acc += t[Math.min(h - 1, Math.max(0, y)) * w + x];
-          for (let y = 0; y < h; y++) { o[y * w + x] = acc / (2 * r + 1); acc += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x]; } }
+      const sc = Math.max(1, Math.ceil(Math.sqrt(w * h / 250000)));
+      const sw = Math.max(2, Math.ceil(w / sc)), sh = Math.max(2, Math.ceil(h / sc)), n = sw * sh;
+      const r = Math.max(2, Math.round(Math.min(sw, sh) * 0.025)), eps = 0.012 * (0.5 + amt);
+      const t = new Float32Array(n);
+      const box = (a, o) => {
+        for (let y = 0; y < sh; y++) { let acc = 0; const row = y * sw;
+          for (let x = -r; x <= r; x++) acc += a[row + Math.min(sw - 1, Math.max(0, x))];
+          for (let x = 0; x < sw; x++) { t[row + x] = acc / (2 * r + 1); acc += a[row + Math.min(sw - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
+        for (let x = 0; x < sw; x++) { let acc = 0;
+          for (let y = -r; y <= r; y++) acc += t[Math.min(sh - 1, Math.max(0, y)) * sw + x];
+          for (let y = 0; y < sh; y++) { o[y * sw + x] = acc / (2 * r + 1); acc += t[Math.min(sh - 1, y + r + 1) * sw + x] - t[Math.max(0, y - r) * sw + x]; } }
         return o; };
+      const I = new Float32Array(n), II = new Float32Array(n), mI = new Float32Array(n), mII = new Float32Array(n), A = new Float32Array(n), B = new Float32Array(n);
       const cx = (bx0 + bx1) / 2 - x0, cy = (by0 + by1) / 2 - y0, rx = bw * 0.55, ry = bh * 0.65;
       for (let c = 0; c < 3; c++) {
-        const I = new Float32Array(n), II = new Float32Array(n);
-        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = d[((y + y0) * W + x + x0) * 4 + c] / 255; I[y * w + x] = v; II[y * w + x] = v * v; }
-        const mI = box(I), mII = box(II), A = new Float32Array(n), B = new Float32Array(n);
+        I.fill(0);
+        const cnt = new Float32Array(n);
+        for (let y = 0; y < h; y++) { const sy = Math.min(sh - 1, (y / sc) | 0);
+          for (let x = 0; x < w; x++) { const k = sy * sw + Math.min(sw - 1, (x / sc) | 0); I[k] += d[((y + y0) * W + x + x0) * 4 + c] / 255; cnt[k]++; } }
+        for (let i = 0; i < n; i++) { I[i] = cnt[i] ? I[i] / cnt[i] : 0; II[i] = I[i] * I[i]; }
+        box(I, mI); box(II, mII);
         for (let i = 0; i < n; i++) { const v = mII[i] - mI[i] * mI[i], k = v / (v + eps); A[i] = k; B[i] = mI[i] - k * mI[i]; }
-        const mA = box(A), mB = box(B);
-        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-          const i = y * w + x, dx = (x - cx) / rx, dy = (y - cy) / ry, e = dx * dx + dy * dy;
-          const m = e >= 1 ? 0 : Math.min(1, (1 - e) * 2.5) * amt; if (!m) continue;
-          const q = mA[i] * I[i] + mB[i], j = ((y + y0) * W + x + x0) * 4 + c;
-          d[j] = Math.round((I[i] * (1 - m) + q * m) * 255);
+        box(A, I); box(B, II); // I = ort. A, II = ort. B (diziler yeniden kullanılır)
+        for (let y = 0; y < h; y++) {
+          const fy = Math.min(sh - 1, Math.max(0, (y + 0.5) / sc - 0.5)), y0i = fy | 0, y1i = Math.min(sh - 1, y0i + 1), ty = fy - y0i;
+          for (let x = 0; x < w; x++) {
+            const dx = (x - cx) / rx, dy = (y - cy) / ry, e = dx * dx + dy * dy;
+            const m = e >= 1 ? 0 : Math.min(1, (1 - e) * 2.5) * amt; if (!m) continue;
+            const fx = Math.min(sw - 1, Math.max(0, (x + 0.5) / sc - 0.5)), x0i = fx | 0, x1i = Math.min(sw - 1, x0i + 1), tx = fx - x0i;
+            const i00 = y0i * sw + x0i, i01 = y0i * sw + x1i, i10 = y1i * sw + x0i, i11 = y1i * sw + x1i;
+            const a = (I[i00] * (1 - tx) + I[i01] * tx) * (1 - ty) + (I[i10] * (1 - tx) + I[i11] * tx) * ty;
+            const b = (II[i00] * (1 - tx) + II[i01] * tx) * (1 - ty) + (II[i10] * (1 - tx) + II[i11] * tx) * ty;
+            const j = ((y + y0) * W + x + x0) * 4 + c, v = d[j] / 255, q = a * v + b;
+            d[j] = Math.round((v * (1 - m) + q * m) * 255);
+          }
         }
       }
     }
   }
+
 
   // Göz altı: kırışıklık (orta frekans) silinir, ince doku korunur, morluk yanak tonuna doğru aydınlatılır.
   function underEye(im, faces, amt = 1) {
