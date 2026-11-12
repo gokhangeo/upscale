@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=12';
-import { MODELS } from './handler.js?v=12';
-import * as C from './core.js?v=12';
-import * as F from './fx.js?v=12';
-import * as DB from './db.js?v=12';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=12';
-import * as AI from './ai.js?v=12';
+import { createEngine } from './engine.js?v=13';
+import { MODELS } from './handler.js?v=13';
+import * as C from './core.js?v=13';
+import * as F from './fx.js?v=13';
+import * as DB from './db.js?v=13';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=13';
+import * as AI from './ai.js?v=13';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -77,6 +77,8 @@ addEventListener('resize', () => { placeTabPill(); layoutStage(); });
 // ---------------- ekranlar ----------------
 const screens = [];
 function openScreen(id) { const el = $('#' + id); el.classList.add('on'); el.setAttribute('aria-hidden', 'false'); if (!screens.includes(id)) screens.push(id); document.body.classList.add('locked'); }
+// Android uygulamasında geri tuşu: en üstteki ekranı kapat
+window.netlikGeri = () => { const id = screens[screens.length - 1]; if (!id) return false; const b = document.querySelector('#' + id + ' .tool-top .round-btn'); b ? b.click() : closeScreen(id); return true; };
 function closeScreen(id) { const el = $('#' + id); el.classList.remove('on'); el.setAttribute('aria-hidden', 'true'); const i = screens.indexOf(id); if (i >= 0) screens.splice(i, 1); if (!screens.length) document.body.classList.remove('locked'); }
 
 // ---------------- motor ----------------
@@ -210,9 +212,15 @@ function drawDisplay(canvas, img, maxSide = DISP) {
   if (!(img instanceof HTMLCanvasElement)) src.width = src.height = 0;
 }
 const fname = (blob, tag) => 'netlik-' + tag + '-' + new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-') + (blob.type === 'image/png' ? '.png' : '.jpg');
+const C2B64 = f => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f); });
 async function shareBlobs(items) {
   const files = items.map(i => new File([i.blob], i.name, { type: i.blob.type }));
-  // Android: paylaş menüsünde "telefona kaydet" yok → doğrudan indir (Galeri/İndirilenler)
+  // Netlik Android uygulaması: doğrudan Galeri > Pictures/Netlik
+  if (window.NetlikAndroid) {
+    let n = 0; for (const f of files) { const b64 = await C2B64(f); if (window.NetlikAndroid.kaydet(b64, f.name, f.type || 'image/jpeg')) n++; }
+    toast(n ? 'Galeriye kaydedildi ✓' : 'Kaydedilemedi', 3000); return !!n;
+  }
+  // Android tarayıcı: paylaş menüsünde "telefona kaydet" yok → doğrudan indir
   if (/Android/i.test(navigator.userAgent)) { for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); } toast('Telefona kaydedildi ✓ (İndirilenler)', 3000); return true; }
   try { if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files }); return true; } }
   catch (e) { if (e.name === 'AbortError') return true; if (e.name === 'NotAllowedError') return false; }
@@ -993,6 +1001,7 @@ function openSettings(focusKey) {
   renderPol();
   if (focusKey) setTimeout(() => { $('#polCard').scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 400);
 }
+if (/Android/i.test(navigator.userAgent) && !window.NetlikAndroid) { const c = $('#apkCard'); if (c) c.hidden = false; }
 // ---------------- Pollinations ----------------
 $('#polModel').innerHTML = AI.POL_MODELS.map(([v, n]) => `<option value="${v}">${n}</option>`).join('');
 function aiNote() { const el = $('#aiNote'); if (el) el.textContent = AI.provider() === 'gemini' ? 'Fotoğraf Google Gemini\'ye gönderilir; kendi API anahtarın kullanılır ve kullanım başına ücret alınabilir.' : 'Fotoğraf Pollinations\'a gönderilir; ücretsiz Pollen bakiyen kullanılır.'; }
