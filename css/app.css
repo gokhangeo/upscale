@@ -143,7 +143,7 @@ svg{width:22px;height:22px;flex:none}
 .tag{position:absolute;top:10px;padding:3px 9px;border-radius:99px;background:rgba(0,0,0,.55);color:#fff;font-size:12px;font-weight:650;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);pointer-events:none;transition:opacity .3s}
 .tag.l{left:10px}.tag.r{right:10px}
 .cwrap.single .divider,.cwrap.single .tag{opacity:0}
-.cwrap.single #cAfter{clip-path:none}
+.cwrap.single #cAfter{clip-path:none!important}
 .cwrap.peek #cAfter{opacity:0}
 .stage.reveal::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 35%,rgba(167,139,250,.35) 50%,transparent 65%);animation:sweep 1s var(--ease) both;pointer-events:none}
 @keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(100%)}}

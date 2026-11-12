@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=8';
-import { MODELS } from './handler.js?v=8';
-import * as C from './core.js?v=8';
-import * as F from './fx.js?v=8';
-import * as DB from './db.js?v=8';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=8';
-import * as AI from './ai.js?v=8';
+import { createEngine } from './engine.js?v=9';
+import { MODELS } from './handler.js?v=9';
+import * as C from './core.js?v=9';
+import * as F from './fx.js?v=9';
+import * as DB from './db.js?v=9';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=9';
+import * as AI from './ai.js?v=9';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -316,6 +316,7 @@ function layoutStage() {
 }
 function showSingle(img) {
   drawDisplay($('#cAfter'), img); $('#cBefore').width = 1; $('#cwrap').classList.add('single');
+  setSplit(0); // tek görüntü: önceki karşılaştırmadan kalan kırpmayı sıfırla (görüntü yarım görünüyordu)
   $('#cwrap').classList.toggle('checker', !(img instanceof HTMLCanvasElement) && hasAlpha(img));
   layoutStage();
 }
@@ -380,6 +381,7 @@ function zoomAt(px, py) { if (Z.s > 1) { resetZoom(); return; } Z.s = 3; Z.x = p
 $('#eyeBtn').addEventListener('click', () => {
   haptic(); const on = !$('#eyeBtn').classList.contains('on'); $('#eyeBtn').classList.toggle('on', on);
   if (st.mode === 'comp' && st.comp) { st.comp.showOriginal = on; renderComp(); }
+  else if ($('#cwrap').classList.contains('single')) return;
   else if (st.result || st.tool === 'color' || st.tool === 'effects' || st.tool === 'faces') setSplit(on ? 100 : 50);
 });
 
@@ -555,7 +557,7 @@ function colorPreview() {
     const out = C.enhance(prevSmall.img, colorParams(), autoInfo);
     drawDisplay($('#cBefore'), prevSmall.img); drawDisplay($('#cAfter'), out);
     $('#cwrap').classList.remove('single', 'checker'); layoutStage();
-    if (parseFloat($('#divider').style.left || '50') > 99) setSplit(50);
+    { const d = parseFloat($('#divider').style.left || '50'); if (d > 99 || d < 1) setSplit(50); }
   });
 }
 colorRanges.forEach(r => { rangeFill(r); r.addEventListener('input', () => { rangeFill(r); $('#o_' + r.dataset.c).textContent = r.value; colorPreview(); optionChanged(); }); });
