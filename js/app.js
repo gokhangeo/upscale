@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=13';
-import { MODELS } from './handler.js?v=13';
-import * as C from './core.js?v=13';
-import * as F from './fx.js?v=13';
-import * as DB from './db.js?v=13';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=13';
-import * as AI from './ai.js?v=13';
+import { createEngine } from './engine.js?v=14';
+import { MODELS } from './handler.js?v=14';
+import * as C from './core.js?v=14';
+import * as F from './fx.js?v=14';
+import * as DB from './db.js?v=14';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=14';
+import * as AI from './ai.js?v=14';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -18,7 +18,7 @@ const DISP = 1400;             // önizleme uzun kenarı
 
 // ---------------- ayarlar ----------------
 const S = Object.assign({
-  enhSize: 'same', enhFace: true, enhAmt: 70, model: 'fast', scale: '2', faceOn: false, faceModel: 'gpen',
+  enhSize: 'same', enhFace: true, enhAmt: 70, model: 'fast', scale: '2', faceOn: false, faceModel: 'gpen', faceEye: true,
   bMode: 'enhance', bScale: '2', theme: 'koyu', cpuBudget: '0.6', pfShape: 'circle', rzFit: 'fit', rzBg: 'blur',
   rzSize: 'igpost', recent: [], aiQual: '1K', aiRatio: 'orig', v: 3, colT: 'grid', colBg: '#f3efe7',
 }, JSON.parse(localStorage.getItem('netlik-ayar') || '{}'));
@@ -481,7 +481,7 @@ $('#runBtn').addEventListener('click', async () => {
         out = await runTracked('upscale', base, srArgs(base, { model: S.model, scale: +S.scale, face: S.faceOn ? { model: 'gpen', s: 0.4 } : null }));
         tag = S.scale + 'x';
       } else if (tool === 'faces') {
-        out = await runJob('faces', { img: pack(base), model: S.faceModel, s: 0.5 });
+        out = await runJob('faces', { img: pack(base), model: S.faceModel, s: 0.5, eye: !!S.faceEye });
         st.faceRaw = out; tag = 'yuz';
       } else if (tool === 'color') {
         out = await runJob('enhance', { img: pack(base), params: colorParams() }); tag = 'renk';
@@ -549,6 +549,7 @@ $$('[data-opt]').forEach(seg => {
   });
 });
 $('#bScaleRow').hidden = S.bMode !== 'upscale';
+if ($('#faceEye')) { const el = $('#faceEye'); el.checked = S.faceEye !== false; el.addEventListener('change', () => { haptic(); S.faceEye = el.checked; saveS(); st.faceRaw = null; optionChanged(); }); }
 const bindSwitch = (id, key) => { const el = $(id); el.checked = !!S[key]; el.addEventListener('change', () => { haptic(); S[key] = el.checked; saveS(); optionChanged(); }); };
 bindSwitch('#enhFace', 'enhFace'); bindSwitch('#faceOn', 'faceOn');
 const enhAmt = $('#enhAmt'); enhAmt.value = S.enhAmt; rangeFill(enhAmt); $('#o_enhAmt').textContent = S.enhAmt;

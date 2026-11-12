@@ -1,6 +1,6 @@
 // Model yönetimi + işler. Worker'da (ya da gerekirse ana thread'de) çalışır.
-import * as C from './core.js?v=13';
-import * as F from './fx.js?v=13';
+import * as C from './core.js?v=14';
+import * as F from './fx.js?v=14';
 
 const HF = 'https://huggingface.co/OwlMaster/AllFilesRope/resolve/d783e61585b3d83a85c91ca8a3b299e8ade94d72/';
 export const MODELS = {
@@ -280,6 +280,55 @@ export function makeHandler(ort, post) {
     }
   }
 
+  // Göz altı: kırışıklık (orta frekans) silinir, ince doku korunur, morluk yanak tonuna doğru aydınlatılır.
+  function underEye(im, faces, amt = 1) {
+    const W = im.w, H = im.h, d = im.data;
+    const blur = (a, w, h, r) => { const t = new Float32Array(a.length), o = new Float32Array(a.length), q = 2 * r + 1;
+      for (let y = 0; y < h; y++) { let acc = 0; const row = y * w;
+        for (let x = -r; x <= r; x++) acc += a[row + Math.min(w - 1, Math.max(0, x))];
+        for (let x = 0; x < w; x++) { t[row + x] = acc / q; acc += a[row + Math.min(w - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
+      for (let x = 0; x < w; x++) { let acc = 0;
+        for (let y = -r; y <= r; y++) acc += t[Math.min(h - 1, Math.max(0, y)) * w + x];
+        for (let y = 0; y < h; y++) { o[y * w + x] = acc / q; acc += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x]; } }
+      return o; };
+    const gb = (a, w, h, r) => blur(blur(blur(a, w, h, r), w, h, r), w, h, r);
+    for (const f of faces) {
+      if (!f.kps || f.kps.length < 2) continue;
+      const [L, R] = f.kps[0][0] < f.kps[1][0] ? [f.kps[0], f.kps[1]] : [f.kps[1], f.kps[0]];
+      const ex = R[0] - L[0], ey = R[1] - L[1], D = Math.hypot(ex, ey); if (D < 12) continue;
+      const ux = ex / D, uy = ey / D, nx = -uy, ny = ux; // nx,ny: yüzün aşağı yönü
+      for (const E of [L, R]) {
+        const cx = E[0] + nx * 0.30 * D, cy = E[1] + ny * 0.30 * D, rx = 0.46 * D, ry = 0.25 * D;
+        const pad = Math.ceil(0.55 * D);
+        const x0 = Math.max(0, Math.floor(cx - pad)), y0 = Math.max(0, Math.floor(cy - pad)), x1 = Math.min(W, Math.ceil(cx + pad)), y1 = Math.min(H, Math.ceil(cy + pad));
+        const w = x1 - x0, h = y1 - y0; if (w < 8 || h < 8) continue;
+        const n = w * h, M = new Float32Array(n);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const px = x + x0 - cx, py = y + y0 - cy, a = (px * ux + py * uy) / rx, b = (px * nx + py * ny) / ry, e = a * a + b * b;
+          if (e >= 1) continue;
+          const up = (px + x0 * 0 + cx - E[0]) * nx + (py + cy - E[1]) * ny; // gözden aşağı uzaklık
+          const lid = Math.min(1, Math.max(0, (up - 0.10 * D) / (0.10 * D))); // kirpik/göz korunur
+          const t = 1 - e; M[y * w + x] = Math.min(1, t * t * (3 - 2 * t) * 1.6) * lid * amt;
+        }
+        // yanak referansı (morluk için)
+        const kx = Math.round(E[0] + nx * 0.62 * D), ky = Math.round(E[1] + ny * 0.62 * D), kr = Math.max(2, Math.round(0.08 * D));
+        const rF = Math.max(1, Math.round(0.012 * D)), rM = Math.max(2, Math.round(0.07 * D));
+        for (let c = 0; c < 3; c++) {
+          const I = new Float32Array(n);
+          for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) I[y * w + x] = d[((y + y0) * W + x + x0) * 4 + c];
+          const lo2 = gb(I, w, h, rF), lo = gb(I, w, h, rM);
+          let cs = 0, cn = 0;
+          for (let y = ky - kr; y <= ky + kr; y++) for (let x = kx - kr; x <= kx + kr; x++) if (x >= 0 && y >= 0 && x < W && y < H) { cs += d[(y * W + x) * 4 + c]; cn++; }
+          const cheek = cn ? cs / cn : null;
+          for (let i = 0; i < n; i++) { const m = M[i]; if (!m) continue;
+            let v = I[i] - m * (lo2[i] - lo[i]) - m * 0.35 * (I[i] - lo2[i]);
+            if (cheek != null && cheek > lo[i]) v += m * 0.7 * (cheek - lo[i]);
+            const j = ((Math.floor(i / w) + y0) * W + (i % w) + x0) * 4 + c; d[j] = v < 0 ? 0 : v > 255 ? 255 : v; }
+        }
+      }
+    }
+  }
+
   // Yalnızca yüz iyileştirme (tüm fotoğrafı büyütmeden)
   async function jobFaces(a) {
     const src = img(a.img);
@@ -304,6 +353,7 @@ export function makeHandler(ort, post) {
       await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
     }
     if (model === 'codeformer') { stage('Cilt pürüzsüzleştiriliyor…', 0.92); smoothSkin(out, faces, 0.35 + 0.6 * (a.s ?? 0.4)); }
+    if (a.eye) { stage('Göz altı kırışıklıkları gideriliyor…', 0.95); underEye(out, faces, 1); }
     return { out, info: { faces: faces.length, restored: true } };
   }
 

@@ -166,6 +166,7 @@
     <!-- yüz -->
     <div class="panel" data-p="faces">
       <div class="row"><label>Model</label><div class="seg small" data-opt="faceModel"><button data-v="gpen">Doğal</button><button data-v="codeformer">Güçlü</button><i class="seg-pill"></i></div></div>
+      <div class="row tight"><label>Göz altı kırışıklığı gider</label><label class="switch"><input type="checkbox" id="faceEye" checked><span></span></label></div>
       <div class="slider-row" id="faceBlendRow"><div class="slider-labels"><span>Güç</span><output id="o_faceBlend">75</output></div><input type="range" min="0" max="100" value="75" id="faceBlend"></div>
       <div class="hint" id="faceHint">Yalnızca yüzler iyileştirilir; fotoğrafın geri kalanı aynı kalır. Birkaç saniye sürer.</div>
     </div>
@@ -398,6 +399,6 @@
 <input type="file" id="colIn" accept="image/*" multiple hidden>
 <label id="hapticLbl" aria-hidden="true" style="position:fixed;left:-99px;top:-99px;opacity:0"><input type="checkbox" switch id="hapticSw"></label>
 
-<script type="module" src="js/app.js?v=13"></script>
+<script type="module" src="js/app.js?v=14"></script>
 </body>
 </html>

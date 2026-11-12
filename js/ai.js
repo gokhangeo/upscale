@@ -10,6 +10,8 @@ export const RATIOS = ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', 
 
 const ID = 'Keep the person\'s face, identity, facial features, skin tone, hairstyle, age, expression and body proportions exactly the same as in the input photo — the result must be clearly recognisable as the same person. Do not beautify, slim or alter the face. Photorealistic, natural result. No text, no watermark.';
 
+const BODY = 'Keep the person\'s face, identity, facial features, skin tone, hairstyle, age and expression exactly the same — clearly the same person. Photorealistic, natural result, no plastic or painted look. No text, no watermark.';
+
 export const PRESETS = [
   { id: 'product', n: 'Ürün sahnesi', sub: 'Hikâye anlatan, yaşam tarzını hareket halinde gösteren çarpıcı görseller oluştur', ex: ['img/ex_bottle.jpg', 'img/ex_bottle_scene.jpg'],
     p: 'Place this exact product into an aspirational lifestyle scene where it is being used naturally, for example held by a hiker on a misty pine forest trail at golden hour. Keep the product\'s shape, colour, material, label, logo and proportions exactly the same. Cinematic, photorealistic lifestyle product photography, shallow depth of field, natural light and shadows. No text, no watermark.' },
@@ -27,6 +29,12 @@ export const PRESETS = [
     p: 'Replace only the background with a beautiful natural landscape — a calm mountain lake at golden hour — with realistic depth of field. Match the light direction and colour temperature on the person so it looks like a real photo taken there. Keep the person, clothing and pose exactly the same. ' + ID },
   { id: 'enhance', n: 'AI ile iyileştir', sub: 'Profesyonel fotoğraf kalitesi: ışık, netlik, renk', ex: ['img/enh_before.jpg', 'img/enh_after.jpg'],
     p: 'Enhance this photo to professional photo quality: correct the exposure and lighting, balanced natural colours and white balance, remove noise and compression artifacts, and sharpen fine details. Keep the person\'s identity, face, clothes, background and composition exactly the same; do not add, remove or move anything. ' + ID },
+  { id: 'belly', n: 'Göbek incelt', sub: 'Karın ve bel bölgesini doğal biçimde incelt', ex: ['img/ex_portrait.jpg', 'img/t_ai.jpg'],
+    p: 'Subtly and realistically slim only the person\'s belly and waist: a flatter stomach and a slightly narrower waistline, as if they were a little fitter. Clothing must follow the new body shape naturally with realistic folds. Do not change the face, head, arms, legs, pose, clothing style or colours, background, lighting or framing; keep straight lines in the background undistorted. ' + BODY },
+  { id: 'legs', n: 'Bacak incelt', sub: 'Bacakları ve kalçayı doğal biçimde incelt', ex: ['img/ex_portrait.jpg', 'img/t_ai.jpg'],
+    p: 'Subtly and realistically slim only the person\'s thighs, calves and hips so the legs look slimmer and more toned, keeping natural anatomy and the same leg length. Clothing must follow the new shape naturally. Do not change the face, upper body, pose, clothing style or colours, background, lighting or framing; keep straight lines in the background undistorted. ' + BODY },
+  { id: 'body', n: 'Göbek + bacak', sub: 'Karın, bel ve bacakları birlikte incelt', ex: ['img/ex_portrait.jpg', 'img/t_ai.jpg'],
+    p: 'Subtly and realistically slim the person\'s belly, waist, hips and legs so they look a little fitter and more toned, with natural anatomy and the same height and pose. Clothing must follow the new body shape naturally. Do not change the face, background, lighting or framing; keep straight lines in the background undistorted. ' + BODY },
   { id: 'free', n: 'Serbest', sub: 'Ne istediğini kendi cümlelerinle yaz', ex: ['img/ex_portrait.jpg', 'img/t_ai.jpg'], p: '' },
 ];
 
