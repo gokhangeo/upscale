@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=14';
-import { MODELS } from './handler.js?v=14';
-import * as C from './core.js?v=14';
-import * as F from './fx.js?v=14';
-import * as DB from './db.js?v=14';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=14';
-import * as AI from './ai.js?v=14';
+import { createEngine } from './engine.js?v=15';
+import { MODELS } from './handler.js?v=15';
+import * as C from './core.js?v=15';
+import * as F from './fx.js?v=15';
+import * as DB from './db.js?v=15';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=15';
+import * as AI from './ai.js?v=15';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -14,6 +14,10 @@ const MAX_OUT = IOS ? 8e6 : 16e6;
 const MAX_LOAD = IOS ? 3.2e6 : 16e6;
 const GPU_TILE = IOS ? 0.25e6 : 4.2e6;
 const CPU_TILE_MAX = IOS ? 0.25e6 : Infinity;
+const MOBILE = IOS || /Android/i.test(navigator.userAgent);
+// "En iyi" (x4plus) karo başına çok bellek ister; telefonda küçük karo. Önceki deneme çöktüyse daha da küçült, yine çökerse Hızlı'ya geç.
+const RUN_LS = 'netlik-running', CRASH_LS = 'netlik-best-crash';
+function bestTile() { const c = +localStorage.getItem(CRASH_LS) || 0; return MOBILE ? (c ? 64 : 128) : 256; }
 const DISP = 1400;             // önizleme uzun kenarı
 
 // ---------------- ayarlar ----------------
@@ -411,7 +415,9 @@ async function withProc(title, img, fn) {
   finally { busy = false; keepAwake(false); showProc(null, null, false); lastInfo.ms = performance.now() - t0; }
 }
 function srArgs(base, extra) {
-  return { maxOutPixels: MAX_OUT, cpuBudget: Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6), gpuBudget: GPU_TILE, ...extra };
+  const a = { maxOutPixels: MAX_OUT, cpuBudget: Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6), gpuBudget: GPU_TILE, ...extra };
+  if (a.model === 'best') { a.tile = bestTile(); if (MOBILE) a.maxOutPixels = Math.min(a.maxOutPixels, 6e6); }
+  return a;
 }
 // SR işleri: karo karo kaydedilir, hata/yeniden yüklemede kaldığı yerden devam eder
 async function runTracked(cmd, base, args, resume) {
@@ -419,6 +425,7 @@ async function runTracked(cmd, base, args, resume) {
   const job = resume || { id, cmd, tool: st.tool, args: { ...args }, w: base.w, h: base.h, created: Date.now(), plan: null, tiles: new Map() };
   if (!resume) { job.input = base.data.slice().buffer; await DB.jobPut({ ...job, tiles: undefined }).catch(() => {}); }
   prog.job = job;
+  localStorage.setItem(RUN_LS, (args && args.model) || cmd);
   let tries = 0;
   for (;;) {
     try {
@@ -430,10 +437,10 @@ async function runTracked(cmd, base, args, resume) {
         const ep = lastEp.startsWith('GPU') ? 'gpu' : 'cpu', px = job.plan.iw * job.plan.ih * (job.tiles.size - before) / Math.max(1, job.tiles.size);
         rates[ep] = Math.round(px / ((performance.now() - t0) / 1000)); saveRates();
       }
-      DB.jobDel(id).catch(() => {}); prog.job = null;
+      DB.jobDel(id).catch(() => {}); prog.job = null; localStorage.removeItem(RUN_LS);
       return out;
     } catch (err) {
-      if (err.cancelled || tries++ >= 1 || !job.tiles.size) { if (err.cancelled) DB.jobDel(id).catch(() => {}); prog.job = null; throw err; }
+      if (err.cancelled || tries++ >= 1 || !job.tiles.size) { if (err.cancelled) DB.jobDel(id).catch(() => {}); prog.job = null; localStorage.removeItem(RUN_LS); throw err; }
       toast('Bir sorun oldu, kaldığı yerden devam ediliyor…', 3500);
       await sleep(600);
     }
@@ -1217,6 +1224,13 @@ async function exportCollage() {
 // ---------------- yarım kalan işler ----------------
 let resumeJob = null;
 async function checkResume() {
+  // Önceki büyütme sayfayı çökerttiyse (telefon belleği): En iyi için karo küçülür, ikinci kez olursa Hızlı'ya geçilir
+  const crashed = localStorage.getItem(RUN_LS); localStorage.removeItem(RUN_LS);
+  if (crashed === 'best' && MOBILE) {
+    const c = (+localStorage.getItem(CRASH_LS) || 0) + 1; localStorage.setItem(CRASH_LS, String(c));
+    if (c >= 2) { S.model = 'fast'; saveS(); setTimeout(() => { $$('[data-opt="model"]').forEach(x => x._ctl && x._ctl.set('fast', false)); toast('"En iyi" bu telefonun belleğine sığmadı; "Hızlı" seçildi', 5000); }, 1500); }
+    else setTimeout(() => toast('Telefon belleği yetmedi; "En iyi" daha küçük parçalarla, daha güvenli çalışacak', 5000), 1500);
+  }
   try {
     const list = (await DB.jobGet()) || [];
     const j = list.sort((a, b) => b.created - a.created)[0];
@@ -1226,7 +1240,7 @@ async function checkResume() {
     resumeJob = j;
     const tiles = await DB.tilesGet(j.id);
     j.tiles = new Map(tiles);
-    $('#resumeTxt').textContent = (TOOLS[j.tool]?.t || 'İşlem') + ' · ' + j.w + '×' + j.h + (j.plan ? ' · %' + Math.round(100 * tiles.length / Math.max(1, Math.ceil(j.plan.iw / 256) * Math.ceil(j.plan.ih / 256))) + ' tamam' : '');
+    $('#resumeTxt').textContent = (TOOLS[j.tool]?.t || 'İşlem') + ' · ' + j.w + '×' + j.h + (j.plan ? ' · %' + Math.round(100 * tiles.length / Math.max(1, Math.ceil(j.plan.iw / (j.plan.tile || 256)) * Math.ceil(j.plan.ih / (j.plan.tile || 256)))) + ' tamam' : '');
     $('#resumeBox').hidden = false;
   } catch {}
 }

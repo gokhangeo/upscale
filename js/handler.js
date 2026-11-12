@@ -1,6 +1,6 @@
 // Model yönetimi + işler. Worker'da (ya da gerekirse ana thread'de) çalışır.
-import * as C from './core.js?v=14';
-import * as F from './fx.js?v=14';
+import * as C from './core.js?v=15';
+import * as F from './fx.js?v=15';
 
 const HF = 'https://huggingface.co/OwlMaster/AllFilesRope/resolve/d783e61585b3d83a85c91ca8a3b299e8ade94d72/';
 export const MODELS = {
@@ -117,10 +117,12 @@ export function makeHandler(ort, post) {
         if (entry.ep !== 'webgpu') return await entry.sess.run(feeds);
         try {
           const r = await entry.sess.run(feeds);
-          if (!entry.runs) {
-            const d = r[entry.sess.outputNames[0]].data;
-            for (let i = 0; i < d.length; i += 97) if (!Number.isFinite(d[i])) { await toWasm('geçersiz çıktı (NaN)'); return await entry.sess.run(feeds); }
-          }
+          // Her karoda denetle: iPhone WebGPU bazen ilk karodan sonra NaN / boş (siyah) çıktı veriyor
+          const d = r[entry.sess.outputNames[0]].data;
+          let bad = false, mx = 0;
+          for (let i = 0; i < d.length; i += 97) { const v = d[i]; if (!Number.isFinite(v)) { bad = true; break; } if (v > mx) mx = v; }
+          if (!bad && mx < 1e-3) { const f = Object.values(feeds)[0].data; let fm = 0; for (let i = 0; i < f.length; i += 97) if (f[i] > fm) fm = f[i]; bad = fm > 0.03; }
+          if (bad) { try { r[entry.sess.outputNames[0]].dispose?.(); } catch {} await toWasm('geçersiz çıktı (NaN/boş)'); return await entry.sess.run(feeds); }
           entry.runs++;
           return r;
         } catch (e) {
@@ -152,7 +154,7 @@ export function makeHandler(ort, post) {
     const minPix = (targetW * targetH) / 16; // 4x model çıktısı hedefi karşılasın
     const want = Math.max(minPix, Math.min(src.w * src.h, budget));
     if (iw * ih > want) { const k = Math.sqrt(want / (iw * ih)); iw = Math.max(16, Math.round(src.w * k)); ih = Math.max(16, Math.round(src.h * k)); }
-    return { iw, ih, tw: targetW, th: targetH };
+    return { iw, ih, tw: targetW, th: targetH, tile: a.tile || TILE };
   }
 
   async function runSR(src, modelKey, targetW, targetH, a, keep, share = [0, 1]) {
@@ -165,7 +167,7 @@ export function makeHandler(ort, post) {
     stage((a.label || 'Büyütülüyor') + ' (' + (gpu ? 'GPU' : 'CPU') + ')…', share[0]);
     post({ type: 'ep', ep: sess.ep });
     let out = await C.upscale(ort, sess, input, {
-      tile: TILE, pad: 10,
+      tile: plan.tile || TILE, pad: 10,
       done,
       onTile: a.track ? (i, data) => post({ type: 'tile', i, buffer: data.buffer }, [data.buffer]) : null,
       onProgress: (p, skipped) => post({ type: 'progress', p: share[0] + (share[1] - share[0]) * p, skipped }),
