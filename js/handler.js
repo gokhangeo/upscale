@@ -245,6 +245,40 @@ export function makeHandler(ort, post) {
     return { out, info: { faces: faces.length, ep } };
   }
 
+  // Yüz bölgesinde kenar koruyan cilt yumuşatma (guided filter, oval maskeyle karışım)
+  function smoothSkin(im, faces, amt) {
+    const W = im.w, H = im.h, d = im.data;
+    for (const f of faces) {
+      const [bx0, by0, bx1, by1] = f.box, bw = bx1 - bx0, bh = by1 - by0;
+      const x0 = Math.max(0, Math.floor(bx0 - bw * 0.1)), y0 = Math.max(0, Math.floor(by0 - bh * 0.15));
+      const x1 = Math.min(W, Math.ceil(bx1 + bw * 0.1)), y1 = Math.min(H, Math.ceil(by1 + bh * 0.1));
+      const w = x1 - x0, h = y1 - y0; if (w < 8 || h < 8) continue;
+      const n = w * h, r = Math.max(2, Math.round(Math.min(w, h) * 0.025)), eps = 0.012 * (0.5 + amt);
+      const box = (a) => { const t = new Float32Array(n), o = new Float32Array(n);
+        for (let y = 0; y < h; y++) { let acc = 0; const row = y * w;
+          for (let x = -r; x <= r; x++) acc += a[row + Math.min(w - 1, Math.max(0, x))];
+          for (let x = 0; x < w; x++) { t[row + x] = acc / (2 * r + 1); acc += a[row + Math.min(w - 1, x + r + 1)] - a[row + Math.max(0, x - r)]; } }
+        for (let x = 0; x < w; x++) { let acc = 0;
+          for (let y = -r; y <= r; y++) acc += t[Math.min(h - 1, Math.max(0, y)) * w + x];
+          for (let y = 0; y < h; y++) { o[y * w + x] = acc / (2 * r + 1); acc += t[Math.min(h - 1, y + r + 1) * w + x] - t[Math.max(0, y - r) * w + x]; } }
+        return o; };
+      const cx = (bx0 + bx1) / 2 - x0, cy = (by0 + by1) / 2 - y0, rx = bw * 0.55, ry = bh * 0.65;
+      for (let c = 0; c < 3; c++) {
+        const I = new Float32Array(n), II = new Float32Array(n);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const v = d[((y + y0) * W + x + x0) * 4 + c] / 255; I[y * w + x] = v; II[y * w + x] = v * v; }
+        const mI = box(I), mII = box(II), A = new Float32Array(n), B = new Float32Array(n);
+        for (let i = 0; i < n; i++) { const v = mII[i] - mI[i] * mI[i], k = v / (v + eps); A[i] = k; B[i] = mI[i] - k * mI[i]; }
+        const mA = box(A), mB = box(B);
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+          const i = y * w + x, dx = (x - cx) / rx, dy = (y - cy) / ry, e = dx * dx + dy * dy;
+          const m = e >= 1 ? 0 : Math.min(1, (1 - e) * 2.5) * amt; if (!m) continue;
+          const q = mA[i] * I[i] + mB[i], j = ((y + y0) * W + x + x0) * 4 + c;
+          d[j] = Math.round((I[i] * (1 - m) + q * m) * 255);
+        }
+      }
+    }
+  }
+
   // Yalnızca yüz iyileştirme (tüm fotoğrafı büyütmeden)
   async function jobFaces(a) {
     const src = img(a.img);
@@ -253,7 +287,11 @@ export function makeHandler(ort, post) {
     const faces = await findFaces(src, keep);
     if (!faces.length) throw new Error('Fotoğrafta yüz bulunamadı');
     const out = { w: src.w, h: src.h, data: new Uint8ClampedArray(src.data) };
-    await faceRestore(out, faces, model, a.s ?? 0.4, [0.2, 1], keep);
+    let m = model, st = a.s ?? 0.4;
+    // iPhone/CPU: CodeFormer (188 MB, fp16) çalışmıyor ve belleği taşırıyor → GPEN tam güç + cilt pürüzsüzleştirme
+    if (m === 'codeformer' && (IOS_DEV || !gpuOK)) { m = 'gpen'; st = Math.max(st, 0.9); }
+    await faceRestore(out, faces, m, st, [0.2, 0.9], ['det', m]);
+    if (model === 'codeformer') { stage('Cilt pürüzsüzleştiriliyor…', 0.92); smoothSkin(out, faces, 0.35 + 0.6 * (a.s ?? 0.4)); }
     return { out, info: { faces: faces.length, restored: true } };
   }
 
