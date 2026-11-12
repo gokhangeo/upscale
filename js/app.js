@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=15';
-import { MODELS } from './handler.js?v=15';
-import * as C from './core.js?v=15';
-import * as F from './fx.js?v=15';
-import * as DB from './db.js?v=15';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=15';
-import * as AI from './ai.js?v=15';
+import { createEngine } from './engine.js?v=16';
+import { MODELS } from './handler.js?v=16';
+import * as C from './core.js?v=16';
+import * as F from './fx.js?v=16';
+import * as DB from './db.js?v=16';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=16';
+import * as AI from './ai.js?v=16';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -16,9 +16,12 @@ const GPU_TILE = IOS ? 0.25e6 : 4.2e6;
 const CPU_TILE_MAX = IOS ? 0.25e6 : Infinity;
 const MOBILE = IOS || /Android/i.test(navigator.userAgent);
 // "En iyi" (x4plus) karo başına çok bellek ister; telefonda küçük karo. Önceki deneme çöktüyse daha da küçült, yine çökerse Hızlı'ya geç.
+const SAFE_LS = 'netlik-safe';
+const maxOut = () => MAX_OUT / (1 + (+localStorage.getItem(SAFE_LS) || 0));
 const RUN_LS = 'netlik-running', CRASH_LS = 'netlik-best-crash';
 function bestTile() { const c = +localStorage.getItem(CRASH_LS) || 0; return MOBILE ? (c ? 64 : 128) : 256; }
-const DISP = 1400;             // önizleme uzun kenarı
+const DISP = 1400;
+if (MOBILE) { const r = document.querySelector('[data-opt="model"]'); if (r) r.closest('.row').style.display = 'none'; } // telefonda yalnız Hızlı (En iyi belleğe sığmıyor)             // önizleme uzun kenarı
 
 // ---------------- ayarlar ----------------
 const S = Object.assign({
@@ -415,7 +418,7 @@ async function withProc(title, img, fn) {
   finally { busy = false; keepAwake(false); showProc(null, null, false); lastInfo.ms = performance.now() - t0; }
 }
 function srArgs(base, extra) {
-  const a = { maxOutPixels: MAX_OUT, cpuBudget: Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6), gpuBudget: GPU_TILE, ...extra };
+  const a = { maxOutPixels: maxOut(), cpuBudget: Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6), gpuBudget: GPU_TILE, ...extra };
   if (a.model === 'best') { a.tile = bestTile(); if (MOBILE) a.maxOutPixels = Math.min(a.maxOutPixels, 6e6); }
   return a;
 }
@@ -453,16 +456,16 @@ function estimate(kind) {
   const rate = rates[gpu ? 'gpu' : 'cpu'] || (gpu ? 200000 : (engine && engine.info.threads > 1 ? 16000 : 10000));
   let pix;
   const b = st.base, sc = kind === 'enh' ? 2 : +S.scale;
-  let tw = b.w * sc, th = b.h * sc; if (tw * th > MAX_OUT) { const k = Math.sqrt(MAX_OUT / (tw * th)); tw *= k; th *= k; }
+  let tw = b.w * sc, th = b.h * sc; if (tw * th > maxOut()) { const k = Math.sqrt(maxOut() / (tw * th)); tw *= k; th *= k; }
   const budget = gpu ? GPU_TILE : Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6);
   pix = Math.max(tw * th / 16, Math.min(b.w * b.h, budget));
-  let sec = pix / rate * (S.model === 'best' && kind !== 'enh' ? 6 : 1);
+  let sec = pix / rate * (!MOBILE && S.model === 'best' && kind !== 'enh' ? 6 : 1);
   return { sec, tw: Math.round(tw), th: Math.round(th), gpu };
 }
 function updateHints() {
   if (!st.base) return;
   const e = estimate('up');
-  if (e) $('#upHint').textContent = 'Çıktı: ' + e.tw + '×' + e.th + ' px · tahmini ' + fmtSec(e.sec) + (e.gpu ? ' (GPU)' : ' (CPU)') + '. ' + (!e.gpu ? 'CPU modunda hız için giriş küçültülür (Ayarlar > CPU\'da büyütme).' : '') + (MODELS[S.model] ? ' İlk kullanımda ~' + Math.round(MODELS[S.model].mb + (S.faceOn ? 79 : 0)) + ' MB model indirilir.' : '');
+  if (e) $('#upHint').textContent = MOBILE ? 'Çıktı: ' + e.tw + '×' + e.th + ' px' : 'Çıktı: ' + e.tw + '×' + e.th + ' px · tahmini ' + fmtSec(e.sec) + (e.gpu ? ' (GPU)' : ' (CPU)') + '.' + (MODELS[S.model] ? ' İlk kullanımda ~' + Math.round(MODELS[S.model].mb + (S.faceOn ? 79 : 0)) + ' MB model indirilir.' : '');
   const e2 = estimate('enh');
   $('#enhHint').textContent = S.enhSize === '2x'
     ? '2× detaylı: Real-ESRGAN ile çözünürlük artar (' + e2.tw + '×' + e2.th + '), tahmini ' + fmtSec(e2.sec + 3) + '.'
@@ -485,7 +488,7 @@ $('#runBtn').addEventListener('click', async () => {
         out = a.detail ? await runTracked('autoenhance', base, a) : await runJob('autoenhance', { ...a, img: pack(base) });
         tag = 'iyilestirilmis';
       } else if (tool === 'upscale') {
-        out = await runTracked('upscale', base, srArgs(base, { model: S.model, scale: +S.scale, face: S.faceOn ? { model: 'gpen', s: 0.4 } : null }));
+        out = await runTracked('upscale', base, srArgs(base, { model: MOBILE ? 'fast' : S.model, scale: +S.scale, face: S.faceOn ? { model: 'gpen', s: 0.4 } : null }));
         tag = S.scale + 'x';
       } else if (tool === 'faces') {
         out = await runJob('faces', { img: pack(base), model: S.faceModel, s: 0.5, eye: !!S.faceEye });
@@ -854,7 +857,7 @@ async function exportComp() {
   const tag = st.tool === 'profile' ? 'profil' : st.tool === 'resize' ? 'boyut' : 'duzenleme';
   cp.sel = -1; cp.showOriginal = false; $('#eyeBtn').classList.remove('on');
   const c = document.createElement('canvas');
-  let k = 1; if (cp.W * cp.H > MAX_OUT) k = Math.sqrt(MAX_OUT / (cp.W * cp.H));
+  let k = 1; if (cp.W * cp.H > maxOut()) k = Math.sqrt(maxOut() / (cp.W * cp.H));
   cp.render(c, k);
   const png = cp.bg.type === 'none';
   const blob = await canvasBlob(c, png, 0.94), thumb = await thumbOf(c, png);
@@ -1225,11 +1228,13 @@ async function exportCollage() {
 let resumeJob = null;
 async function checkResume() {
   // Önceki büyütme sayfayı çökerttiyse (telefon belleği): En iyi için karo küçülür, ikinci kez olursa Hızlı'ya geçilir
+  // Önceki işlem sayfayı çökerttiyse (telefon belleği): bundan sonra çıktı boyutu küçülür, yarım iş tekrar sunulmaz (yine çökerdi)
   const crashed = localStorage.getItem(RUN_LS); localStorage.removeItem(RUN_LS);
-  if (crashed === 'best' && MOBILE) {
-    const c = (+localStorage.getItem(CRASH_LS) || 0) + 1; localStorage.setItem(CRASH_LS, String(c));
-    if (c >= 2) { S.model = 'fast'; saveS(); setTimeout(() => { $$('[data-opt="model"]').forEach(x => x._ctl && x._ctl.set('fast', false)); toast('"En iyi" bu telefonun belleğine sığmadı; "Hızlı" seçildi', 5000); }, 1500); }
-    else setTimeout(() => toast('Telefon belleği yetmedi; "En iyi" daha küçük parçalarla, daha güvenli çalışacak', 5000), 1500);
+  if (crashed) {
+    localStorage.setItem(SAFE_LS, String(Math.min(3, (+localStorage.getItem(SAFE_LS) || 0) + 1)));
+    try { for (const o of (await DB.jobGet()) || []) await DB.jobDel(o.id); } catch {}
+    setTimeout(() => toast('Telefonun belleği yetmedi. Artık daha küçük boyutta, güvenli çalışacak.', 5000), 1200);
+    return;
   }
   try {
     const list = (await DB.jobGet()) || [];
