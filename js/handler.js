@@ -13,7 +13,8 @@ export const MODELS = {
   seg: { url: 'https://huggingface.co/onnx-community/ormbg-ONNX/resolve/034e2d884afbab897e10e78fc5bb566b29533fd6/onnx/model_quantized.onnx', mb: 44.3, name: 'Arka plan ayırma (ORMBG)', gpu: false },
 };
 const CACHE = 'bulut-models-v1';
-const MEM_BUDGET_MB = 300;
+const IOS_DEV = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const MEM_BUDGET_MB = IOS_DEV ? 50 : (300);
 export const TILE = 256;
 
 export function makeHandler(ort, post) {

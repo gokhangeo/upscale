@@ -99,7 +99,8 @@ export async function segment(ort, sess, img, onStage) {
   // 1024 karede leke temizliği (en-boy oranı bozuk ama topoloji aynı)
   m = cleanBlobs(m, S, S);
   // çalışma çözünürlüğü: uzun kenar ≤ 2048
-  const k = Math.min(1, 2048 / Math.max(img.w, img.h));
+  const IOSD = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const k = Math.min(1, (IOSD ? 1280 : 2048) / Math.max(img.w, img.h));
   const ww = Math.max(1, Math.round(img.w * k)), wh = Math.max(1, Math.round(img.h * k));
   const work = k < 1 ? resize(img, ww, wh) : img;
   let a = resizeF(m, S, S, ww, wh);
