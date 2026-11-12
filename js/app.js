@@ -8,8 +8,12 @@ import * as AI from './ai.js';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const MAX_OUT = 16e6;          // iOS tuval sınırı ~16.7 MP
-const MAX_LOAD = 16e6;
+// iPhone/iPad (özellikle ana ekran uygulaması) bellek aşınca sayfayı baştan yükler → sınırları düşük tut.
+const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const MAX_OUT = IOS ? 8e6 : 16e6;
+const MAX_LOAD = IOS ? 3.2e6 : 16e6;
+const GPU_TILE = IOS ? 0.25e6 : 4.2e6;
+const CPU_TILE_MAX = IOS ? 0.25e6 : Infinity;
 const DISP = 1400;             // önizleme uzun kenarı
 
 // ---------------- ayarlar ----------------
@@ -395,7 +399,7 @@ async function withProc(title, img, fn) {
   finally { busy = false; keepAwake(false); showProc(null, null, false); lastInfo.ms = performance.now() - t0; }
 }
 function srArgs(base, extra) {
-  return { maxOutPixels: MAX_OUT, cpuBudget: +S.cpuBudget * 1e6, gpuBudget: 4.2e6, ...extra };
+  return { maxOutPixels: MAX_OUT, cpuBudget: Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6), gpuBudget: GPU_TILE, ...extra };
 }
 // SR işleri: karo karo kaydedilir, hata/yeniden yüklemede kaldığı yerden devam eder
 async function runTracked(cmd, base, args, resume) {
@@ -431,7 +435,7 @@ function estimate(kind) {
   let pix;
   const b = st.base, sc = kind === 'enh' ? 2 : +S.scale;
   let tw = b.w * sc, th = b.h * sc; if (tw * th > MAX_OUT) { const k = Math.sqrt(MAX_OUT / (tw * th)); tw *= k; th *= k; }
-  const budget = gpu ? 4.2e6 : +S.cpuBudget * 1e6;
+  const budget = gpu ? GPU_TILE : Math.min(CPU_TILE_MAX, +S.cpuBudget * 1e6);
   pix = Math.max(tw * th / 16, Math.min(b.w * b.h, budget));
   let sec = pix / rate * (S.model === 'best' && kind !== 'enh' ? 6 : 1);
   return { sec, tw: Math.round(tw), th: Math.round(th), gpu };

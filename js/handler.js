@@ -23,7 +23,8 @@ export function makeHandler(ort, post) {
   async function init(a) {
     ort.env.logLevel = 'error';
     const coi = typeof crossOriginIsolated !== 'undefined' && crossOriginIsolated;
-    ort.env.wasm.numThreads = coi ? Math.max(1, Math.min(4, navigator.hardwareConcurrency || 2)) : 1;
+    const ios = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    ort.env.wasm.numThreads = coi ? Math.max(1, Math.min(ios ? 2 : 4, navigator.hardwareConcurrency || 2)) : 1;
     gpuOff = new Set((a && a.gpuOff) || []);
     try {
       if (typeof navigator !== 'undefined' && navigator.gpu && !(a && a.noGpu)) {
