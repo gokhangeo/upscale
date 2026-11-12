@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=16';
-import { MODELS } from './handler.js?v=16';
-import * as C from './core.js?v=16';
-import * as F from './fx.js?v=16';
-import * as DB from './db.js?v=16';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=16';
-import * as AI from './ai.js?v=16';
+import { createEngine } from './engine.js?v=17';
+import { MODELS } from './handler.js?v=17';
+import * as C from './core.js?v=17';
+import * as F from './fx.js?v=17';
+import * as DB from './db.js?v=17';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=17';
+import * as AI from './ai.js?v=17';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
@@ -37,6 +37,7 @@ const gpuOffList = () => JSON.parse(localStorage.getItem('netlik-gpu-off') || '[
 // ---------------- mikro etkileşimler ----------------
 function haptic() { try { if (navigator.vibrate) { navigator.vibrate(8); return; } $('#hapticLbl').click(); } catch {} }
 let toastT;
+window.toast = (t, ms) => toast(t, ms);
 function toast(t, ms = 2800) { const el = $('#toast'); el.textContent = t; el.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove('on'), ms); }
 function applyTheme() { const d = S.theme === 'koyu' || (S.theme === 'sistem' && matchMedia('(prefers-color-scheme: dark)').matches); document.documentElement.dataset.theme = d ? 'dark' : 'light'; localStorage.setItem('netlik-tema', S.theme); }
 function setupSeg(seg, value, onChange) {
@@ -225,7 +226,7 @@ async function shareBlobs(items) {
   // Netlik Android uygulaması: doğrudan Galeri > Pictures/Netlik
   if (window.NetlikAndroid) {
     let n = 0; for (const f of files) { const b64 = await C2B64(f); if (window.NetlikAndroid.kaydet(b64, f.name, f.type || 'image/jpeg')) n++; }
-    toast(n ? 'Galeriye kaydedildi ✓' : 'Kaydedilemedi', 3000); return !!n;
+    if (!window.NetlikIOS) toast(n ? 'Galeriye kaydedildi ✓' : 'Kaydedilemedi', 3000); return !!n;
   }
   // Android tarayıcı: paylaş menüsünde "telefona kaydet" yok → doğrudan indir
   if (/Android/i.test(navigator.userAgent)) { for (const f of files) { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); } toast('Telefona kaydedildi ✓ (İndirilenler)', 3000); return true; }
