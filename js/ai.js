@@ -183,7 +183,7 @@ export async function polEdit({ key, model, prompt, blob, aspect, size, signal }
   if (!r.ok) {
     const m = (j && ((j.error && (j.error.message || j.error)) || j.message)) || ('HTTP ' + r.status);
     if (r.status === 401) throw new Error('Pollinations anahtarı geçersiz ya da süresi doldu – Ayarlar\'dan yeniden bağlan');
-    if (r.status === 402) throw new Error('Pollen bakiyesi bitti – enter.pollinations.ai'de görev (Quest) tamamlayarak ücretsiz Pollen kazanabilirsin');
+    if (r.status === 402) throw new Error('Pollen bakiyesi bitti – enter.pollinations.ai sitesinde görev (Quest) tamamlayarak ücretsiz Pollen kazanabilirsin');
     if (r.status === 429) throw new Error('Çok sık istek – birkaç saniye sonra tekrar dene');
     throw new Error(typeof m === 'string' ? m : JSON.stringify(m).slice(0, 200));
   }

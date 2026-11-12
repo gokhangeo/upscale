@@ -1,10 +1,10 @@
-import { createEngine } from './engine.js?v=10';
-import { MODELS } from './handler.js?v=10';
-import * as C from './core.js?v=10';
-import * as F from './fx.js?v=10';
-import * as DB from './db.js?v=10';
-import { Composer, SIZES, ratioLabel } from './composer.js?v=10';
-import * as AI from './ai.js?v=10';
+import { createEngine } from './engine.js?v=11';
+import { MODELS } from './handler.js?v=11';
+import * as C from './core.js?v=11';
+import * as F from './fx.js?v=11';
+import * as DB from './db.js?v=11';
+import { Composer, SIZES, ratioLabel } from './composer.js?v=11';
+import * as AI from './ai.js?v=11';
 
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
