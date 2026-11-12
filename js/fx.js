@@ -1,5 +1,5 @@
 // Segmentasyon sonrası işleme, kompozit ve efektler. Ortamdan bağımsız.
-import { newImg, resize, boxBlurF, boxBlurRGB } from './core.js';
+import { newImg, resize, boxBlurF, boxBlurRGB } from './core.js?v=7';
 
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 

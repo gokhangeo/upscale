@@ -5,7 +5,7 @@ self.addEventListener('fetch', e => {
   const r = e.request;
   if (r.cache === 'only-if-cached' && r.mode !== 'same-origin') return;
   if (new URL(r.url).origin !== self.location.origin) return;
-  e.respondWith(fetch(r).then(res => {
+  e.respondWith(fetch(r, /\.js(\?|$)/.test(r.url) ? { cache: 'no-cache' } : undefined).then(res => {
     if (!res || res.status === 0 || res.type === 'opaque') return res;
     const h = new Headers(res.headers);
     h.set('Cross-Origin-Embedder-Policy', 'require-corp');
